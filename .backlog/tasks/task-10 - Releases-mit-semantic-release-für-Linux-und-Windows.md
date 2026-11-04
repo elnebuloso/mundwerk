@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-11-04 21:49'
-updated_date: '2026-11-04 22:41'
+updated_date: '2026-11-04 22:51'
 labels: []
 dependencies: []
 priority: high
@@ -39,4 +39,6 @@ Der Nutzer will Linux amd64 und Windows bei jedem Release als Artefakte am Tag h
 
 <!-- SECTION:NOTES:BEGIN -->
 Releases `v0.1.0` und `v0.2.0` mit `mundwerk-linux-x86_64` und `mundwerk-windows-x86_64.exe` erzeugt. Das Linux-Binary von `v0.2.0` enthält die Version `0.2.0`. Erster Lauf: Linux scheiterte an `-lvulkan`, behoben mit `libvulkan-dev`. 10 min für „Linux dependencies“ lagen am langsamen Mirror (54 kB/s), im nächsten Lauf 20 s. Build-Cache (`actions/cache`) seit `eacaac8`; der erste Lauf damit hat ihn nur gefüllt (Build 476 s Linux, 426 s Windows). Ein Pull Request ist noch nicht gelaufen.
+
+Mit gefülltem Cache (Lauf für `v0.3.0`): Build 11 s Linux / 30 s Windows statt 476 s / 426 s; Cache-Wiederherstellung 11 s / 42 s.
 <!-- SECTION:NOTES:END -->
