@@ -306,11 +306,11 @@ fn model_label(style: &egui::Style, i: usize, with_state: bool) -> LayoutJob {
     job
 }
 
-/// The version CI releases under; Cargo.toml's for local builds.
+/// The version CI releases under; "dev" for local builds, since Cargo.toml's version is never bumped.
 fn version() -> &'static str {
     match option_env!("MUNDWERK_VERSION") {
         Some(v) if !v.is_empty() => v,
-        _ => env!("CARGO_PKG_VERSION"),
+        _ => "dev",
     }
 }
 
@@ -697,6 +697,7 @@ impl eframe::App for App {
                         ui_ctx.set_theme(theme);
                         save_theme(theme);
                     }
+                    ui.label(egui::RichText::new(format!("Version {}", version())).weak());
                 });
             });
         });

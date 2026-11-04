@@ -54,7 +54,7 @@ jobs:
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: 24
-      # Sets no version outside main or when no release is due; the build then reports the one in Cargo.toml.
+      # Sets no version outside main or when no release is due; the build then reports "dev".
       - id: next
         run: npx --package semantic-release@25.0.9 --package @semantic-release/exec@7.1.0 semantic-release --dry-run
         env:
