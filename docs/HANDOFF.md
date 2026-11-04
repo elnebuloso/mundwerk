@@ -2,86 +2,71 @@
 
 ## Was Mundwerk ist
 
-Lokale Diktier-App: Fenster öffnen, Modell wählen, „● Aufnahme starten“, sprechen, stoppen. Der Text landet in einem editierbaren Textfeld, „In Zwischenablage kopieren“ kopiert ihn. Spracherkennung läuft lokal mit whisper.cpp, es gibt kein Konto und keine Cloud.
+Eine lokale Diktier-App in Rust, mit egui für das Fenster, cpal für das Mikrofon und whisper-rs für whisper.cpp. Man wählt ein Modell, nimmt auf, und der Text landet in einem Textfeld, aus dem man ihn kopiert. Es gibt kein Konto und keine Cloud. Ins Netz geht die App nur für den Modell-Download von Hugging Face. Der ganze Code steht in `src/main.rs`. Was die App kann und wie man sie bedient, beschreibt die `README.md` vollständig. Sie ist als Ziel-README für den fertigen Zustand geschrieben.
 
-**Ziele des Nutzers:**
-- Kein Python auf dem Zielrechner. Ausgeliefert wird eine einzelne `.exe` für Windows und ein Binary für Linux, beide über GitHub Releases.
-- Unter Linux und WSL (über WSLg) startbar.
-- Die GPU wird automatisch genutzt, wenn eine da ist. Der Nutzer hat eine GTX 1070.
-- „Keep it simple and stupid“.
-
-Entstanden ist das als Ersatz für OpenWhispr (verlangt ein E-Mail-Konto) und OpenWhisper.org (nur OpenAI-API). Der Vorläufer war ein Python-Skript des Nutzers (faster-whisper, Hotkey, Auto-Paste), das nicht ins Repo gehört.
+Die Ziele des Nutzers:
+- Kein Python auf dem Zielrechner. Ausgeliefert werden Binaries für Windows und Linux amd64, beide über GitHub Releases.
+- Die GPU wird automatisch genutzt. Der Nutzer hat eine GTX 1070 und einen i5-3570K ohne AVX2.
+- „Keep it simple and stupid.“
+- Transparenz für Vertrauen: woher die Modelle kommen, wohin sie gespeichert werden, was die App gerade tut.
 
 ## Stand
 
-- **Code:** alles in `src/main.rs`. Die Teile:
-  - eframe/egui 0.37 für das Fenster
-  - cpal 0.18 für das Mikrofon
-  - whisper-rs 0.16 als Anbindung an whisper.cpp
-  - ureq für den Modell-Download von `huggingface.co/ggerganov/whisper.cpp`
-  - dirs für das Modellverzeichnis
-- **GPU:** Das Cargo-Feature `vulkan` ist Default. Ob eine GPU genutzt wird, entscheidet whisper.cpp beim Start selbst und fällt sonst auf die CPU zurück. Ohne GPU-Support baut `--no-default-features`.
-- **Release:** `.github/workflows/release.yml` baut bei einem Tag `v*` auf `ubuntu-22.04` und `windows-latest`. Die Artefakte `mundwerk-linux-x86_64` und `mundwerk-windows-x86_64.exe` hängt `softprops/action-gh-release` ans Release.
-- **`Makefile`:** Targets `help`, `build`, `run`, `test`.
-- **Die Dateien sind ungetrackt und nichts ist committet.** Der Umzug kam aus `/tmp/foo/mundwerk`. Das Repo steht noch auf dem Branch `chore/charter-rules`, der mit dieser Arbeit nichts zu tun hat.
-
-**Verifiziert in WSL (Ubuntu 24.04, i5-3570K, GTX 1070):**
-- Release-Build mit Vulkan läuft durch.
-- `cargo test` läuft durch, das ist ein Unit-Test für `resample`.
-- Das Fenster öffnet sich über WSLg.
-- Das Modell `large-v3-turbo-q5_0` wird heruntergeladen und geladen.
-- `ggml_vulkan: No devices found` → sauberer CPU-Fallback.
-
-**Gemessen** mit einem inzwischen gelöschten Bench-Example, 5 s Stille, `large-v3-turbo-q5_0`, CPU mit 4 Threads:
-
-| Einstellungen | Dauer |
-|---|---|
-| Greedy, volles 30-s-Fenster | 126 s |
-| Greedy, `set_audio_ctx` auf Aufnahmelänge | 17 s (mit und ohne Vulkan-Build gleich) |
-
-Daraufhin sind in der App Greedy und `set_audio_ctx` eingebaut. Beam-Search 5, die vorherige App-Einstellung, wurde nie gemessen. In der Praxis lief es damit nach über 2 Minuten noch.
+- **Releases laufen automatisch** über `.github/workflows/ci.yml` und `.releaserc.json`, nach dem Vorbild von `/workspace/github.com/elnebuloso/grimoire`. Ein Push auf `main`, der Code ändert, baut und testet beide Plattformen. Ist seit dem letzten Tag ein `feat` oder `fix` dabei, entsteht ein Tag `vX.Y.Z` mit `mundwerk-linux-x86_64` und `mundwerk-windows-x86_64.exe`. Zuletzt ist `v0.3.0` erschienen.
+- **Build-Cache:** Mit gefülltem Cache dauert der Build 11 s unter Linux und 30 s unter Windows, ohne Cache 476 s bzw. 426 s.
+- **Unter WSL (CPU) geprüft:**
+  - Diktat mit echter Sprache, korrekt erkannt. 3 s Sprache brauchen 15–25 s.
+  - Download mit Prüfsumme und Abbrechen
+  - alle Zustände der Oberfläche, per Screenshot
+  - Dark/Light-Schalter samt Speichern der Wahl
+  - Version in der Fußzeile
+- **Unter Windows:** Der Nutzer hat ein frühes Windows-Artefakt gestartet. Daher stammt der Wunsch nach dem Dark-Mode. Ob die Fußzeile die GPU zeigt und wie schnell es damit ist, ist **nicht bekannt**.
+- **Backlog:** offen sind TASK-5, TASK-6, TASK-8, TASK-9 und TASK-10. Welche Abnahmekriterien noch fehlen und warum, steht jeweils in den Notizen (`backlog task view TASK-n --plain`).
 
 ## Nächste Schritte
 
-1. **Ende-zu-Ende mit echter Sprache bestätigen lassen.** Der Nutzer hat noch nie einen erfolgreich transkribierten Text gesehen. Beim ersten Versuch hing es scheinbar bei „Transkribiere …“, das war aber nur die langsame CPU. Danach kamen erst Greedy, `audio_ctx` und die Sekundenanzeige dazu.
-2. **Vor dem ersten Commit den Branch klären** (siehe offene Entscheidungen), dann in Conventional Commits auf Englisch committen. Pushen nur, wenn der Nutzer es ausdrücklich sagt.
-3. **Workflow einmal laufen lassen** (`workflow_dispatch` existiert), sobald gepusht ist. Er ist noch nie gelaufen, die Risiken stehen unter den Stolperfallen.
-4. **Die Windows-`.exe` auf dem Rechner des Nutzers testen.** Das ist der eigentliche Zielpfad mit GTX 1070 über Vulkan. Völlig ungetestet.
-5. **Offene Punkte als Backlog-Tasks anlegen.** Das Repo nutzt Backlog.md, siehe `CLAUDE.md`: zuerst `backlog instructions overview`, Tasks auf Deutsch, immer mit `--type` und `--priority`. Bisher gibt es keine Tasks.
+1. **TASK-8:** Die `.exe` des neuesten Releases auf dem Windows-Rechner des Nutzers testen.
+   - Zeigt die Fußzeile `GPU – NVIDIA GeForce GTX 1070 (Vulkan0), automatisch gewählt`?
+   - Wie lange dauert ein Diktat (Zeile „Text erkannt: …“ im Protokoll)?
+   - Liegt der Ordner unter `%USERPROFILE%\.mundwerk`?
+   Damit lassen sich auch TASK-6 (AC 1) und TASK-2 für Windows abschließen.
+2. **Was noch nicht live geprüft ist** und in TASK-9, TASK-5 und TASK-10 offen steht:
+   - Wechsel auf ein schon vorhandenes Modell (Auto-Laden)
+   - eine stumme Aufnahme mit der Meldung „Kein Ton aufgenommen“
+   - `Strg+Shift+C`
+   - das Protokoll beim allerersten Start
+   - eine falsche Prüfsumme
+   - ein Build aus einem Pull Request, der nicht released
 
 ## Offene Entscheidungen
 
-- **Branch:** Die Arbeit liegt ungetrackt auf `chore/charter-rules`. Eigener Feature-Branch von `main`, oder erst `chore/charter-rules` mergen? Das entscheidet der Nutzer.
-- **Release-Mechanik:** `.claude/rules/agent-plugin-charter/releases.md` setzt voraus, dass ein Release-Tooling die Version aus Conventional Commits ableitet. Ein solches Tooling gibt es noch nicht, der Workflow reagiert nur auf manuell gesetzte Tags `v*`. Release-please oder Ähnliches einführen, oder bei Tags bleiben? `Cargo.toml` steht auf `0.1.0`. Unter 1.0 gilt `v0-commits.md`: keine Breaking-Change-Marker.
-- **GPU-Anzeige in der UI:** Der Nutzer wollte, dass die App die GPU „ausliest“. Die Auswahl passiert automatisch, sichtbar ist sie aber nur auf stderr, nicht im Fenster. Ob GPU oder CPU, steht nur in den whisper.cpp-Logzeilen (`whisper_backend_init_gpu`). Eine Anzeige bräuchte Log-Hooks (`whisper-rs` Feature `log_backend`) oder ggml-Device-Abfragen.
-- **GPU unter WSL:** Vulkan sieht dort keine NVIDIA, es gibt nur `lvp` und CUDA (`/usr/lib/wsl/lib/libcuda.so`). GPU-Tempo in WSL ginge nur mit einem CUDA-Build. Der braucht das CUDA-Toolkit im Build und CUDA-Libs beim Nutzer, also ein zweites Artefakt. Bisher bewusst nicht gemacht: „unter WSL CPU, für GPU die Windows-`.exe`“.
-- **Sprache der UI:** Die UI-Texte sind deutsch, Code und Kommentare englisch (Regel `base.md`). Für ein Open-Source-Release eventuell Englisch oder umschaltbar machen. Bisher nicht besprochen.
+- **GPU unter WSL:** Vulkan sieht dort keine NVIDIA-Karte. Möglich wäre das nur mit einem CUDA-Build als zweitem Artefakt, dafür bräuchte es das CUDA-Toolkit im Build und die CUDA-Bibliotheken beim Nutzer. Bisher gilt: unter WSL die CPU, für die GPU die Windows-`.exe`.
+- **Sprache der Oberfläche:** im Moment Deutsch. Englisch oder umschaltbar wurde nie besprochen.
+- **Halluzinationen bei Rauschen:** Ohne Sprache erfindet Whisper kurze Sätze („Vielen Dank.“, „Ja.“). Die Stille-Erkennung fängt nur echte Stille ab. whisper.cpp liefert pro Segment eine No-Speech-Wahrscheinlichkeit, damit ließe sich mehr filtern. Dafür gibt es noch keinen Task.
+- **Signieren der `.exe`:** Der Nutzer hat entschieden, das nicht anzugehen. SmartScreen warnt bei jedem Release, „Zulassen“ in den Eigenschaften bzw. `Unblock-File` hilft. Sollte das später doch kommen, wäre der erste Schritt die SignPath Foundation, für Open Source ist sie kostenlos.
 
 ## Stolperfallen
 
-- **Rust-Toolchain:** rustup hat keine Default-Toolchain, nur `1.99.0` ist installiert. `make build` und `cargo` scheitern mit „rustup could not choose a version“. Lokal mit `RUSTUP_TOOLCHAIN=1.99.0 make build` arbeiten, oder den Nutzer fragen, ob `rustup default 1.99.0` gesetzt werden darf.
-- **Dauer des ersten Builds:** In einem frischen `target/` dauert der Build etwa 10 Minuten (whisper.cpp und Vulkan-Shader). Im Repo lief beim Schreiben dieser Übergabe der erste `make test`-Build noch. Ob er grün durchlief, ist nicht bestätigt, also einmal `RUSTUP_TOOLCHAIN=1.99.0 make test` ausführen. Mit gleichem Quellcode lief er in `/tmp/foo/mundwerk` grün.
-- **CPU-Flags im Release:** Der Workflow setzt `GGML_NATIVE=OFF`, `GGML_AVX2=OFF` und `GGML_FMA=OFF`. Der Rechner des Nutzers (i5-3570K, Ivy Bridge) hat **kein AVX2**, ein AVX2-Build stürzt dort mit „illegal instruction“ ab. Diese Flags nicht „optimieren“. Die `GGML_*`-Env-Variablen reicht `whisper-rs-sys` an CMake durch, das ist im Quellcode `build.rs` geprüft.
-- **Ungetestete Annahmen im Workflow:**
-  - Inputs von `jakoch/install-vulkan-sdk-action@v1`
-  - `RUSTFLAGS=-C target-feature=+crt-static` zusammen mit dem CMake-Build von whisper.cpp unter MSVC. Mögliche Folge: CRT-Mismatch beim Linken. Notfalls das Flag entfernen, dann braucht der Nutzer die VC++-Runtime.
-  - libclang für bindgen auf `windows-latest`
-- **Linux-Binary:** Es ist gegen `libvulkan.so.1` gelinkt und startet ohne `libvulkan1` gar nicht. Das steht in der README. Unter WSL ist die Bibliothek da.
-- **WSL-Mikrofon:** cpal nutzt ALSA, und in WSL ist ALSA nicht auf den PulseAudio-Server von WSLg umgeleitet. Fehlerbild: „The requested audio device is not available“. Lösung: `libasound2-plugins` installieren und `~/.asoundrc` anlegen. Beides ist auf diesem Rechner erledigt und steht in der README. Ob danach echte Sprache ankam, ist offen: Eine Testaufnahme mit `arecord` war stumm, möglicherweise hat nur niemand gesprochen.
-- **`set_audio_ctx`:** In whisper.cpp ist das als EXPERIMENTAL markiert. Ein kleineres Fenster kann bei Whisper zu Wiederholungen oder schlechterer Qualität führen. Mit echter Sprache ist das nicht geprüft. Greedy statt Beam-Search ist auf Qualität ebenfalls nicht geprüft.
-- **Modellverzeichnis unter Windows:** `dirs::data_dir()` zeigt auf `%APPDATA%`, also das **Roaming**-Profil. Dort liegen dann 0,5 bis 1,6 GB, die in Firmenumgebungen mitsynchronisiert werden. `dirs::data_local_dir()` (`%LOCALAPPDATA%`) wäre richtig. Ist noch nicht umgestellt, die README nennt `%APPDATA%`.
-- **Zwischenablage unter Linux/X11:** Bei egui `copy_text` gehört der Inhalt dem Prozess und kann verschwinden, wenn Mundwerk beendet wird. Das ist eine Vermutung zum X11-Verhalten und nicht geprüft.
-- **Unterschied zum Python-Vorläufer:** Neuer Text wird ans Ende angehängt, nicht an der Cursorposition. Bei der Fenster-Variante in Python war es die Cursorposition.
-- **Download:** Es gibt keine Prüfsumme. Ein abgebrochener Download bleibt als `.part` liegen und wird beim nächsten Versuch überschrieben, ein kaputtes Modell entsteht also nicht.
-- **Windows SmartScreen:** Die `.exe` ist unsigniert, SmartScreen wird warnen. Das steht noch nicht in der README.
-- **Lizenz:** Es gilt die vorhandene `LICENSE` im Repo (Copyright elnebuloso). In `/tmp/foo/mundwerk/LICENSE` liegt eine abweichende Fassung mit einem anderen Namen, die nicht übernommen wurde und nicht übernommen werden soll.
-- **Chat-Regel des Repos:** Jede finale Antwort beginnt mit `[mundwerk]` (`chat.md`).
-
-## Außerhalb des Repos (Entsorgung nur nach Zustimmung des Nutzers)
-
-- `/tmp/foo/mundwerk/`: die alte Arbeitskopie, inklusive mehrerer GB in `target/`
-- `/tmp/foo/whisper/`: das entpackte Python-Vorläuferprojekt mit `diktat.py`/`diktat.bat`. Daneben liegt `/tmp/foo/whisper 1.zip`, das Original des Nutzers.
-- `~/.local/share/mundwerk/ggml-large-v3-turbo-q5_0.bin`: das Modell, 0,5 GB. Behalten spart den Download beim Testen.
-- Systemänderungen dieser Session, als Info:
-  - per apt installiert: `cmake clang libclang-dev libasound2-dev libvulkan-dev glslc libasound2-plugins alsa-utils`
-  - `~/.asoundrc` angelegt
+- **Startpunkt für semantic-release:** Der Tag `v0.0.0` und das Release „placeholder release for semantic release“ hat der Nutzer angelegt. Sie sind der Startpunkt und dürfen nicht gelöscht werden. Ohne sie würde semantic-release mit `1.0.0` beginnen. Unter 1.0 gilt `v0-commits.md`: keine Breaking-Change-Marker, sonst entsteht ebenfalls `1.0.0`.
+- **Version in `Cargo.toml`:** Sie bleibt bei `0.1.0` und hat keine Bedeutung. Die Release-Version kommt beim Build über `MUNDWERK_VERSION` herein, lokale Builds zeigen „dev“. Nicht hochzählen.
+- **CI startet nur bei Code-Pfaden:** `src/**`, `Cargo.toml`, `Cargo.lock`, `ci.yml` und `.releaserc.json`. Ist ein Build rot und wird danach nur Doku gepusht, läuft nichts erneut. Dann von Hand starten (`gh workflow run ci.yml`).
+- **Cache-Schlüssel:** Er setzt sich aus Betriebssystem, Rust-Version und `Cargo.lock` zusammen. Ändert sich eins davon, baut der nächste Lauf alles neu, das dauert etwa 8 Minuten.
+- **Diese Einstellungen nicht „optimieren“:**
+  - `GGML_AVX2=OFF`, weil der i5-3570K sonst mit „illegal instruction“ abstürzt
+  - `CARGO_TARGET_DIR=C:/t` unter Windows, weil whisper.cpp sonst über das Pfadlimit von 260 Zeichen kommt (Fehler `FTK1011`)
+  - `libvulkan-dev` im Linux-Build, sonst fehlt beim Linken `-lvulkan`
+- **Linux-Abhängigkeiten im CI:** Einmal hat „Linux dependencies“ 10 Minuten gedauert, weil der Azure-Mirror nur 54 kB/s lieferte, sonst sind es etwa 20 s. Vorinstallierte Pakete streichen spart wenig und ist ungeprüft.
+- **Schreibrechte im Job `version`:** Ob semantic-release im Probelauf Schreibrechte braucht, ist eine ungeprüfte Annahme. Mit Schreibrechten funktioniert es.
+- **Einfügen am Cursor:** Bei einem Test des Nutzers landete der Text einmal am Ende statt an der Cursorposition. Er hatte mit `make run` unter Wayland gestartet. Unter X11 konnte ich das nicht nachstellen, und der Nutzer hat es nicht weiter verfolgt. Ungeklärt.
+- **Screenshot-Tests unter WSL:**
+  - Die App mit `env -u WAYLAND_DISPLAY ./target/release/mundwerk` starten.
+  - Screenshot mit `import -window Mundwerk out.png`. Während einer Aufnahme heißt das Fenster „● Aufnahme – Mundwerk“.
+  - Klicks mit `xdotool`: erst `windowfocus`, dann `mousemove --window`, dann `mousedown 1` und `mouseup 1`. Ein einfaches `click` kommt nicht an, und `xdotool type` kommt auch nicht an. Tasten gehen mit `xdotool key --window <id> ctrl+r`.
+  - `xdotool` wurde per apt installiert.
+  - Laufende Instanzen vorher beenden (`pkill -x mundwerk`), sonst landen die Tasten in der falschen Instanz.
+- **Playwright** funktioniert nicht, Mundwerk ist ein natives Fenster.
+- **Mikrofon unter WSL:** Es braucht zwei Dinge: die ALSA-Weiterleitung an PulseAudio (README, Abschnitt „WSL“) und die Windows-Freigabe „Desktop-Apps den Zugriff auf Ihr Mikrofon erlauben“. Ohne die Freigabe kommt nur Stille an. Prüfen lässt sich das mit `arecord -d 5 -f S16_LE -r 16000 -c 1 <datei>.wav` und dem Spitzenwert: bei Stille 1, bei Sprache etwa 15000.
+- **Unbelegte Angaben in der README:** Die CPU-Generationen für AVX und F16C (Ivy Bridge, Piledriver, Jaguar) stammen aus dem Gedächtnis.
+- **Zwischenablage unter Linux/X11:** Dass der Inhalt nach dem Beenden von Mundwerk verschwinden kann, ist weiterhin nur eine Vermutung.
+- **Entwicklungsrechner:** Unter WSL liegt `large-v3-turbo-q5_0` (0,5 GB) in `~/.mundwerk/models/`, das spart den Download beim Testen. Die Rust-Toolchain `1.99.0` ist als Default gesetzt.
+- **Außerhalb des Repos:** `/tmp/foo/whisper 1.zip` ist das Original des Python-Vorläufers des Nutzers. Behalten, und es gehört nicht ins Repo.
