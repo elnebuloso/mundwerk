@@ -22,8 +22,6 @@ const MODELS: &[(&str, &str, &str)] = &[
     ("base", "Am schnellsten, ungenauer", "0,15 GB"),
 ];
 const LANGS: &[(&str, &str)] = &[("de", "Deutsch"), ("en", "Englisch"), ("auto", "Automatisch")];
-const PRESENT: egui::Color32 = egui::Color32::from_rgb(80, 200, 120);
-const MISSING: egui::Color32 = egui::Color32::from_rgb(230, 150, 40);
 const MIC_HINT: &str = "Mikrofon prüfen – unter Windows: Einstellungen > Datenschutz und Sicherheit > Mikrofon";
 // below about -40 dBFS throughout: nothing but noise floor, and Whisper would invent text for it
 const SILENCE: f32 = 0.01;
@@ -300,7 +298,7 @@ fn model_label(style: &egui::Style, i: usize, with_state: bool) -> LayoutJob {
     let (name, purpose, size) = MODELS[i];
     let font = egui::TextStyle::Button.resolve(style);
     let (dot, color, state) =
-        if model_path(name).exists() { ("●", PRESENT, "vorhanden") } else { ("○", MISSING, "noch nicht heruntergeladen") };
+        if model_path(name).exists() { ("●", present_color(&style.visuals), "vorhanden") } else { ("○", missing_color(&style.visuals), "noch nicht heruntergeladen") };
     let mut job = LayoutJob::default();
     job.append(dot, 0.0, TextFormat::simple(font.clone(), color));
     let text = if with_state { format!("{purpose} · {name} · {size} – {state}") } else { format!("{purpose} · {name} · {size}") };
@@ -314,6 +312,34 @@ fn version() -> &'static str {
         Some(v) if !v.is_empty() => v,
         _ => env!("CARGO_PKG_VERSION"),
     }
+}
+
+/// Green for "present"/GPU, readable on both backgrounds.
+fn present_color(visuals: &egui::Visuals) -> egui::Color32 {
+    if visuals.dark_mode { egui::Color32::from_rgb(80, 200, 120) } else { egui::Color32::from_rgb(21, 128, 61) }
+}
+
+/// Orange for "not downloaded", readable on both backgrounds.
+fn missing_color(visuals: &egui::Visuals) -> egui::Color32 {
+    if visuals.dark_mode { egui::Color32::from_rgb(230, 150, 40) } else { egui::Color32::from_rgb(180, 83, 9) }
+}
+
+fn theme_path() -> PathBuf {
+    app_dir().join("theme")
+}
+
+/// Dark unless the user switched to light; the system theme is deliberately not followed.
+fn load_theme() -> egui::Theme {
+    match std::fs::read_to_string(theme_path()) {
+        Ok(s) if s.trim() == "light" => egui::Theme::Light,
+        _ => egui::Theme::Dark,
+    }
+}
+
+fn save_theme(theme: egui::Theme) {
+    let value = if theme == egui::Theme::Light { "light" } else { "dark" };
+    // losing the choice only means dark at the next start
+    let _ = std::fs::write(theme_path(), value);
 }
 
 fn decimal(secs: f32) -> String {
@@ -497,7 +523,7 @@ impl App {
                     self.start_load(ui_ctx);
                 }
                 if self.loaded == name {
-                    ui.label(egui::RichText::new("✓ geladen").color(PRESENT));
+                    ui.label(egui::RichText::new("✓ geladen").color(present_color(ui.visuals())));
                 } else if !model_path(name).exists() && ui.button(format!("Herunterladen ({size})")).clicked() {
                     self.start_load(ui_ctx);
                 }
@@ -659,10 +685,19 @@ impl eframe::App for App {
         egui::Panel::top("bar").frame(padded(egui::Frame::side_top_panel(&style))).show(root, |ui| self.model_row(ui, ui_ctx));
 
         egui::Panel::bottom("footer").frame(padded(egui::Frame::side_top_panel(&style))).show(root, |ui| {
-            let color = if self.device.starts_with("GPU") { PRESENT } else { ui.visuals().weak_text_color() };
+            let color = if self.device.starts_with("GPU") { present_color(ui.visuals()) } else { ui.visuals().weak_text_color() };
             ui.horizontal(|ui| {
                 ui.label(egui::RichText::new("●").color(color));
                 ui.label(format!("Berechnung läuft auf: {}", self.device));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let mut theme = ui_ctx.theme();
+                    let light = ui.selectable_value(&mut theme, egui::Theme::Light, "☀ Hell");
+                    let dark = ui.selectable_value(&mut theme, egui::Theme::Dark, "🌙 Dunkel");
+                    if light.changed() || dark.changed() {
+                        ui_ctx.set_theme(theme);
+                        save_theme(theme);
+                    }
+                });
             });
         });
 
@@ -717,6 +752,7 @@ fn main() -> eframe::Result {
                 style.spacing.item_spacing = egui::vec2(8.0, 6.0);
                 style.spacing.button_padding = egui::vec2(10.0, 5.0);
             });
+            cc.egui_ctx.set_theme(load_theme());
             Ok(Box::new(App::new(&cc.egui_ctx)))
         }),
     )
