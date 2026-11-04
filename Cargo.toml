@@ -1,0 +1,19 @@
+[package]
+name = "mundwerk"
+version = "0.1.0"
+edition = "2024"
+description = "Local offline dictation with Whisper"
+license = "MIT"
+
+[dependencies]
+cpal = "0.18"
+dirs = "7"
+eframe = "0.37"
+sha2 = "0.11.1"
+ureq = "3"
+whisper-rs = { version = "0.16", features = ["raw-api"] }  # raw-api: ggml device query for the footer
+
+[features]
+# Vulkan picks up an available GPU (NVIDIA/AMD/Intel) at runtime and falls back to CPU
+default = ["vulkan"]
+vulkan = ["whisper-rs/vulkan"]
