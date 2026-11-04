@@ -1,0 +1,24 @@
+{
+	"branches": ["main"],
+	"tagFormat": "v${version}",
+	"plugins": [
+		"@semantic-release/commit-analyzer",
+		"@semantic-release/release-notes-generator",
+		[
+			"@semantic-release/exec",
+			{ "verifyReleaseCmd": "echo \"version=${nextRelease.version}\" >> \"$GITHUB_OUTPUT\"" }
+		],
+		[
+			"@semantic-release/github",
+			{
+				"assets": [
+					{ "path": "dist/mundwerk-linux-x86_64", "label": "mundwerk-linux-x86_64" },
+					{ "path": "dist/mundwerk-windows-x86_64.exe", "label": "mundwerk-windows-x86_64.exe" }
+				],
+				"successComment": false,
+				"failComment": false,
+				"releasedLabels": false
+			}
+		]
+	]
+}

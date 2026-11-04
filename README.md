@@ -6,7 +6,14 @@ Ein kleines Fenster: **Aufnahme starten → sprechen → stoppen**. Der Text lan
 
 ## Installation
 
-Windows 10/11 (64 Bit): Unter [Releases](../../releases) `mundwerk-windows-x86_64.exe` herunterladen und starten. Python oder andere Installationen sind nicht nötig. Für Linux gibt es vorerst kein fertiges Binary, siehe [Selbst bauen](#selbst-bauen).
+Unter [Releases](../../releases) die passende Datei herunterladen und starten. Python oder andere Installationen sind nicht nötig.
+
+| System | Datei |
+|---|---|
+| Windows 10/11 (64 Bit) | `mundwerk-windows-x86_64.exe` |
+| Linux x86_64 | `mundwerk-linux-x86_64` (vorher `chmod +x mundwerk-linux-x86_64`) |
+
+Die `.exe` ist nicht signiert: Windows SmartScreen warnt beim ersten Start, „Weitere Informationen“ › „Trotzdem ausführen“ startet sie.
 
 Mundwerk legt alles in einem Ordner ab: `%USERPROFILE%\.mundwerk\` unter Windows, `~/.mundwerk/` unter Linux.
 
