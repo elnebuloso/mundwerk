@@ -80,7 +80,7 @@ Zum Deinstallieren die Programmdatei und diesen Ordner löschen.
 
 ## Wenn etwas nicht klappt
 
-Fehler stehen rot mit ⚠ unter dem Aufnahme-Button und zusätzlich im Protokoll.
+Fehler stehen rot mit ⚠ unter dem Aufnahme-Button und zusätzlich im Protokoll. Die Version steht rechts in der Fußzeile („Version 0.2.0“; selbst gebaut: „Version dev“).
 
 **„Kein Ton aufgenommen“** – Das Mikrofon liefert nur Stille. Unter Windows: `Einstellungen > Datenschutz und Sicherheit > Mikrofon`, dort „Mikrofonzugriff“ und „Desktop-Apps den Zugriff auf Ihr Mikrofon erlauben“ einschalten. Mundwerk nimmt über das Standard-Aufnahmegerät des Systems auf; welches das ist, steht im Protokoll („Aufnahme über Mikrofon: …“).
 
