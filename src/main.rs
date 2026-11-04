@@ -19,7 +19,7 @@ const MODELS: &[(&str, &str)] = &[
     ("small", "schnell, 0,5 GB"),
     ("base", "sehr schnell, 0,15 GB"),
 ];
-const LANGS: &[&str] = &["de", "en", "auto"];
+const LANGS: &[(&str, &str)] = &[("de", "Deutsch"), ("en", "Englisch"), ("auto", "Automatisch")];
 const PRESENT: egui::Color32 = egui::Color32::from_rgb(80, 200, 120);
 const MISSING: egui::Color32 = egui::Color32::from_rgb(230, 150, 40);
 
@@ -302,7 +302,7 @@ impl App {
             Some(r) => {
                 drop(r._stream);
                 let audio = resample(&r.samples.lock().unwrap(), r.rate);
-                let (ctx, tx, ui, lang) = (self.ctx.clone().unwrap(), self.tx.clone(), ui_ctx.clone(), LANGS[self.lang]);
+                let (ctx, tx, ui, lang) = (self.ctx.clone().unwrap(), self.tx.clone(), ui_ctx.clone(), LANGS[self.lang].0);
                 self.busy = true;
                 self.audio_secs = audio.len() as f32 / 16000.0;
                 self.transcribing_since = Some(Instant::now());
@@ -364,63 +364,110 @@ impl eframe::App for App {
         if let Some(t) = self.transcribing_since {
             self.status = format!("Transkribiere ... {} s", t.elapsed().as_secs());
         }
-        egui::Panel::top("bar").show(root, |ui| {
-            ui.add_space(6.0);
-            let (name, info) = MODELS[self.model];
-            ui.horizontal(|ui| {
-                ui.add_enabled_ui(!self.busy && self.rec.is_none(), |ui| {
-                    egui::ComboBox::from_id_salt("model").selected_text(model_label(name, info)).show_ui(ui, |ui| {
+        let (name, info) = MODELS[self.model];
+        let present = model_path(name).exists();
+        let style = root.style().clone();
+        let padded = |frame: egui::Frame| frame.inner_margin(egui::Margin::symmetric(14, 10));
+
+        egui::Panel::top("bar").frame(padded(egui::Frame::side_top_panel(&style))).show(root, |ui| {
+            ui.add_enabled_ui(!self.busy && self.rec.is_none(), |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Modell");
+                    egui::ComboBox::from_id_salt("model").width(340.0).selected_text(model_label(name, info)).show_ui(ui, |ui| {
                         for (i, (name, info)) in MODELS.iter().enumerate() {
                             ui.selectable_value(&mut self.model, i, model_label(name, info));
                         }
                     });
-                    let action = if model_path(name).exists() { "Modell laden" } else { "Herunterladen und laden" };
-                    if name != self.loaded && ui.button(action).clicked() {
+                    if name == self.loaded {
+                        ui.label(egui::RichText::new("✓ geladen").color(PRESENT));
+                    } else if ui.button(if present { "Modell laden" } else { "Herunterladen und laden" }).clicked() {
                         self.busy = true;
                         let (tx, ui) = (self.tx.clone(), ui_ctx.clone());
                         std::thread::spawn(move || load_model(name.into(), tx, ui));
                     }
-                    egui::ComboBox::from_id_salt("lang").selected_text(LANGS[self.lang]).width(60.0).show_ui(ui, |ui| {
-                        for (i, l) in LANGS.iter().enumerate() {
-                            ui.selectable_value(&mut self.lang, i, *l);
-                        }
+                });
+            });
+            ui.add_space(4.0);
+            egui::Grid::new("model_info").num_columns(2).spacing([10.0, 2.0]).show(ui, |ui| {
+                ui.label(egui::RichText::new("Quelle").small().weak());
+                ui.label(egui::RichText::new(model_url(name)).small().monospace());
+                ui.end_row();
+                ui.label(egui::RichText::new("Ziel").small().weak());
+                ui.label(egui::RichText::new(model_path(name).display().to_string()).small().monospace());
+                ui.end_row();
+            });
+        });
+
+        egui::Panel::bottom("footer").frame(padded(egui::Frame::side_top_panel(&style))).show(root, |ui| {
+            let color = if self.device.starts_with("GPU") { PRESENT } else { MISSING };
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new("●").color(color));
+                ui.label(egui::RichText::new(format!("Rechenwerk: {}", self.device)).small());
+            });
+        });
+
+        egui::Panel::bottom("log").resizable(true).default_size(120.0).frame(padded(egui::Frame::side_top_panel(&style))).show(root, |ui| {
+            ui.label(egui::RichText::new("Protokoll").small().weak());
+            egui::ScrollArea::vertical().stick_to_bottom(true).auto_shrink(false).show(ui, |ui| {
+                for line in &self.log {
+                    ui.label(egui::RichText::new(line).small().monospace());
+                }
+            });
+        });
+
+        egui::CentralPanel::default().frame(padded(egui::Frame::central_panel(&style))).show(root, |ui| {
+            ui.horizontal(|ui| {
+                let (label, fill) = match &self.rec {
+                    Some(r) => {
+                        let secs = r.samples.lock().unwrap().len() as u32 / r.rate.max(1);
+                        (format!("■  Aufnahme stoppen · {secs} s"), egui::Color32::from_rgb(185, 28, 28))
+                    }
+                    None => ("●  Aufnahme starten".to_string(), egui::Color32::from_rgb(37, 99, 235)),
+                };
+                let can_record = self.ctx.is_some() && !self.busy;
+                let text = egui::RichText::new(label).size(18.0);
+                let rec_btn = if can_record {
+                    egui::Button::new(text.color(egui::Color32::WHITE)).fill(fill)
+                } else {
+                    egui::Button::new(text)
+                };
+                if ui.add_enabled(can_record, rec_btn.min_size(egui::vec2(240.0, 44.0)).corner_radius(8.0)).clicked() {
+                    self.toggle(ui_ctx);
+                }
+                ui.add_space(8.0);
+                let hint = if self.ctx.is_none() && !self.busy { "Erst ein Modell laden" } else { self.status.as_str() };
+                ui.label(egui::RichText::new(hint).size(15.0));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add_enabled_ui(!self.busy && self.rec.is_none(), |ui| {
+                        egui::ComboBox::from_id_salt("lang").selected_text(LANGS[self.lang].1).show_ui(ui, |ui| {
+                            for (i, (_, label)) in LANGS.iter().enumerate() {
+                                ui.selectable_value(&mut self.lang, i, *label);
+                            }
+                        });
+                        ui.label("Sprache");
                     });
                 });
             });
-            ui.small(format!("Quelle: {}", model_url(name)));
-            ui.small(format!("Ziel: {}", model_path(name).display()));
-            ui.add_space(6.0);
-            ui.horizontal(|ui| {
-                let label = if self.rec.is_some() { "■ Aufnahme stoppen" } else { "● Aufnahme starten" };
-                let rec_btn = egui::Button::new(egui::RichText::new(label).size(16.0)).min_size(egui::vec2(180.0, 32.0));
-                let rec_btn = if self.rec.is_some() { rec_btn.fill(egui::Color32::from_rgb(185, 28, 28)) } else { rec_btn };
-                if ui.add_enabled(self.ctx.is_some() && !self.busy, rec_btn).clicked() {
-                    self.toggle(ui_ctx);
-                }
-                if ui.add(egui::Button::new("In Zwischenablage kopieren").min_size(egui::vec2(0.0, 32.0))).clicked() {
-                    ui_ctx.copy_text(self.text.clone());
-                    self.status = "Kopiert ✓".into();
-                }
-                if ui.button("Leeren").clicked() {
-                    self.text.clear();
-                }
-                ui.label(&self.status);
-            });
-            ui.add_space(6.0);
-        });
-        egui::Panel::bottom("footer").show(root, |ui| {
-            ui.small(format!("Rechenwerk: {}", self.device));
-        });
-        egui::Panel::bottom("log").resizable(true).default_size(110.0).show(root, |ui| {
-            egui::ScrollArea::vertical().stick_to_bottom(true).auto_shrink(false).show(ui, |ui| {
-                for line in &self.log {
-                    ui.monospace(line);
-                }
-            });
-        });
-        egui::CentralPanel::default().show(root, |ui| {
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                ui.add_sized(ui.available_size(), egui::TextEdit::multiline(&mut self.text).font(egui::TextStyle::Body));
+            ui.add_space(8.0);
+            ui.with_layout(egui::Layout::bottom_up(egui::Align::Max), |ui| {
+                ui.horizontal(|ui| {
+                    if ui.add_enabled(!self.text.is_empty(), egui::Button::new("Leeren")).clicked() {
+                        self.text.clear();
+                    }
+                    if ui.add_enabled(!self.text.is_empty(), egui::Button::new("In Zwischenablage kopieren")).clicked() {
+                        ui_ctx.copy_text(self.text.clone());
+                        self.status = "Kopiert ✓".into();
+                    }
+                });
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.add_sized(
+                        ui.available_size(),
+                        egui::TextEdit::multiline(&mut self.text)
+                            .hint_text("Hier erscheint der diktierte Text. Du kannst ihn vor dem Kopieren bearbeiten.")
+                            .margin(egui::Margin::same(10))
+                            .font(egui::TextStyle::Body),
+                    );
+                });
             });
         });
         if self.rec.is_some() || self.transcribing_since.is_some() {
@@ -431,10 +478,28 @@ impl eframe::App for App {
 
 fn main() -> eframe::Result {
     let opts = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([720.0, 560.0]).with_title("Mundwerk"),
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([760.0, 600.0])
+            .with_min_inner_size([560.0, 420.0])
+            .with_title("Mundwerk"),
         ..Default::default()
     };
-    eframe::run_native("Mundwerk", opts, Box::new(|_| Ok(Box::new(App::new()))))
+    eframe::run_native(
+        "Mundwerk",
+        opts,
+        Box::new(|cc| {
+            cc.egui_ctx.all_styles_mut(|style| {
+                use egui::{FontFamily, FontId, TextStyle};
+                style.text_styles.insert(TextStyle::Body, FontId::new(15.0, FontFamily::Proportional));
+                style.text_styles.insert(TextStyle::Button, FontId::new(15.0, FontFamily::Proportional));
+                style.text_styles.insert(TextStyle::Small, FontId::new(12.0, FontFamily::Proportional));
+                style.text_styles.insert(TextStyle::Monospace, FontId::new(12.5, FontFamily::Monospace));
+                style.spacing.item_spacing = egui::vec2(8.0, 6.0);
+                style.spacing.button_padding = egui::vec2(10.0, 5.0);
+            });
+            Ok(Box::new(App::new()))
+        }),
+    )
 }
 
 #[cfg(test)]
