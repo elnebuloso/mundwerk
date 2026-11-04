@@ -44,6 +44,7 @@ Die Tasten wirken nur, solange das Mundwerk-Fenster im Vordergrund ist.
 - Neuer Text wird an der Cursorposition eingefügt. Ohne gesetzten Cursor kommt er ans Ende.
 - „Leeren“ löscht den ganzen Text. „Rückgängig“ holt ihn zurück, aber nur bis zum nächsten Diktat oder zur nächsten Änderung im Textfeld.
 - Die Sprache stellst du rechts neben dem Aufnahme-Button ein: „Deutsch“, „Englisch“ oder „Automatisch“.
+- Mundwerk startet dunkel, unabhängig von der Systemeinstellung. Rechts in der Fußzeile schaltest du auf „☀ Hell“ um; die Wahl gilt auch beim nächsten Start.
 - Bei Rauschen ohne Sprache erfindet Whisper manchmal kurze Sätze wie „Vielen Dank.“ oder „Ja.“ – einfach löschen.
 
 ## Modelle
@@ -73,6 +74,7 @@ Alles liegt in einem Ordner: `%USERPROFILE%\.mundwerk\` unter Windows, `~/.mundw
 
 - `models/` – die heruntergeladenen Modelle
 - `mundwerk.log` – das Protokoll, dieselben Zeilen wie unter „Protokoll“ im Fenster, mit Sekunden seit dem Programmstart
+- `theme` – `light`, wenn du auf hell umgeschaltet hast
 
 Zum Deinstallieren die Programmdatei und diesen Ordner löschen.
 
