@@ -308,6 +308,14 @@ fn model_label(style: &egui::Style, i: usize, with_state: bool) -> LayoutJob {
     job
 }
 
+/// The version CI releases under; Cargo.toml's for local builds.
+fn version() -> &'static str {
+    match option_env!("MUNDWERK_VERSION") {
+        Some(v) if !v.is_empty() => v,
+        _ => env!("CARGO_PKG_VERSION"),
+    }
+}
+
 fn decimal(secs: f32) -> String {
     format!("{secs:.1}").replace('.', ",")
 }
@@ -349,7 +357,7 @@ impl App {
                 Err(e) => app.log(format!("Ordner {} konnte nicht angelegt werden: {e}", dir.display())),
             }
         }
-        app.log(format!("Mundwerk {} gestartet, Daten in {}", env!("CARGO_PKG_VERSION"), dir.display()));
+        app.log(format!("Mundwerk {} gestartet, Daten in {}", version(), dir.display()));
         app.log(format!("Berechnung läuft auf: {}", app.device));
         if model_path(MODELS[0].0).exists() {
             app.start_load(ui_ctx);
