@@ -2,11 +2,23 @@ name: CI
 
 # Pull requests build and test both platforms. A push to main does the same, then semantic-release
 # tags and publishes a GitHub release with both binaries; without `feat` or `fix` since the last tag
-# nothing is released.
+# nothing is released. Changes outside the code (README, backlog, docs) start no run at all.
 on:
   push:
     branches: [main]
+    paths:
+      - src/**
+      - Cargo.toml
+      - Cargo.lock
+      - .github/workflows/ci.yml
+      - .releaserc.json
   pull_request:
+    paths:
+      - src/**
+      - Cargo.toml
+      - Cargo.lock
+      - .github/workflows/ci.yml
+      - .releaserc.json
   workflow_dispatch:
 
 permissions:
