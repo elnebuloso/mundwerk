@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-11-04 20:48'
-updated_date: '2026-11-04 20:52'
+updated_date: '2026-11-04 21:49'
 labels: []
 dependencies: []
 priority: high
@@ -36,4 +36,6 @@ GPU-Beschleunigung (Vulkan, GTX 1070) ist nur mit der Windows-`.exe` erreichbar;
 
 <!-- SECTION:NOTES:BEGIN -->
 Linux-Eintrag und Linux-Abhängigkeiten aus `release.yml` entfernt, Matrix bleibt, damit Linux mit einem Eintrag zurückkommt. README angepasst. Workflow ist noch nie gelaufen, das kommt mit TASK-8.
+
+Vom Nutzer überholt: Linux und Windows werden wieder gebaut, über semantic-release (TASK-10).
 <!-- SECTION:NOTES:END -->

@@ -4,9 +4,10 @@ title: Windows-`.exe` auf dem Rechner mit GTX 1070 testen
 status: To Do
 assignee: []
 created_date: '2026-11-04 20:48'
+updated_date: '2026-11-04 21:49'
 labels: []
 dependencies:
-  - TASK-1
+  - TASK-10
   - TASK-7
 priority: high
 type: task
