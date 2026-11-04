@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-11-04 20:48'
-updated_date: '2026-11-04 20:52'
+updated_date: '2026-11-04 21:06'
 labels: []
 dependencies:
   - TASK-2
@@ -22,9 +22,9 @@ Der Nutzer soll das Verhalten der App nachvollziehen können (Ordner anlegen, Do
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Ein scrollbarer Bereich im Fenster zeigt jede Protokollzeile mit Zeitangabe
-- [ ] #2 Dieselben Zeilen werden an `~/.mundwerk/mundwerk.log` angehängt
-- [ ] #3 Download protokolliert URL, Fortschritt und Speicherort
+- [x] #1 Ein scrollbarer Bereich im Fenster zeigt jede Protokollzeile mit Zeitangabe
+- [x] #2 Dieselben Zeilen werden an `~/.mundwerk/mundwerk.log` angehängt
+- [x] #3 Download protokolliert URL, Fortschritt und Speicherort
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -39,4 +39,6 @@ Der Nutzer soll das Verhalten der App nachvollziehen können (Ordner anlegen, Do
 
 <!-- SECTION:NOTES:BEGIN -->
 Zeitangabe: Sekunden seit Start (kein Zeitzonen-Crate). Datei geprüft: Startzeilen landen in `~/.mundwerk/mundwerk.log`. Das Panel im Fenster ist noch nicht angesehen.
+
+Vom Nutzer im Fenster gesehen: Prüfsumme, Speicherort, Laden, Transkriptionsdauer.
 <!-- SECTION:NOTES:END -->

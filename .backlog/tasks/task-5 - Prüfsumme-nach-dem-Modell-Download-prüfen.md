@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-11-04 20:48'
-updated_date: '2026-11-04 20:52'
+updated_date: '2026-11-04 21:06'
 labels: []
 dependencies:
   - TASK-4
@@ -22,9 +22,9 @@ Vertrauen: Der Nutzer soll sehen, dass die geladene Datei genau die von Hugging 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Nach dem Download wird der SHA-256 berechnet und mit dem von Hugging Face verglichen
+- [x] #1 Nach dem Download wird der SHA-256 berechnet und mit dem von Hugging Face verglichen
 - [ ] #2 Bei Abweichung wird die Datei verworfen und ein Fehler angezeigt
-- [ ] #3 Das Ergebnis steht im Protokoll
+- [x] #3 Das Ergebnis steht im Protokoll
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -38,4 +38,6 @@ Vertrauen: Der Nutzer soll sehen, dass die geladene Datei genau die von Hugging 
 
 <!-- SECTION:NOTES:BEGIN -->
 Geprüft: `x-linked-etag` von `resolve/main/ggml-base.bin` = `sha256sum` der Datei (60ed5bc3…). ureq 3.5.1 mit `max_redirects(0)` liefert 302 samt `x-linked-etag` und `location` (Wegwerf-Projekt). Ein voller Download in der App steht noch aus. Neue Abhängigkeit `sha2`.
+
+In der App geprüft: Download von `large-v3-turbo-q5_0` mit „Prüfsumme SHA-256 stimmt: 3942217…“. Der Zweig für eine falsche Prüfsumme ist nicht ausgelöst worden.
 <!-- SECTION:NOTES:END -->
