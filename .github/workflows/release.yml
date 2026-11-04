@@ -16,6 +16,8 @@ env:
   GGML_AVX2: "OFF"
   GGML_FMA: "OFF"
   GGML_F16C: "ON"
+  # whisper.cpp's Vulkan shader build nests deep enough to pass Windows' 260-character path limit under ./target
+  CARGO_TARGET_DIR: C:/t
 
 jobs:
   build:
@@ -25,7 +27,7 @@ jobs:
         include:
           # Windows only for now: it is the one target where the GPU (Vulkan) is reachable
           - os: windows-latest
-            bin: target/release/mundwerk.exe
+            bin: C:/t/release/mundwerk.exe
             asset: mundwerk-windows-x86_64.exe
     runs-on: ${{ matrix.os }}
     steps:
