@@ -88,7 +88,7 @@ jobs:
           cache: true
       - name: Linux dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y cmake clang libclang-dev libasound2-dev
+        run: sudo apt-get update && sudo apt-get install -y cmake clang libclang-dev libasound2-dev libvulkan-dev
       # cargo directly rather than `make`: windows-latest has no GNU make, and CI needs `--locked`.
       - name: Build
         shell: bash
