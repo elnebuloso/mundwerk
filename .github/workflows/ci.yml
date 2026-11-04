@@ -81,7 +81,17 @@ jobs:
       MUNDWERK_VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: dtolnay/rust-toolchain@stable
+      - id: rust
+        uses: dtolnay/rust-toolchain@stable
+      # Building whisper.cpp and the Vulkan shaders is most of the run; a new Rust version or
+      # Cargo.lock rebuilds everything anyway, so both are part of the key.
+      - uses: actions/cache@v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ matrix.target_dir }}
+          key: build-${{ runner.os }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('Cargo.lock') }}
       - uses: jakoch/install-vulkan-sdk-action@v1
         with:
           install_runtime: false
