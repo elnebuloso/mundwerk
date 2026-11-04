@@ -40,6 +40,8 @@ Unter Windows bringt der normale Grafiktreiber Vulkan mit. Unter Linux wird `lib
   printf 'pcm.!default { type pulse }\nctl.!default { type pulse }\n' > ~/.asoundrc
   ```
 
+  Kommt trotzdem nur Stille an (Whisper erkennt dann oft „Vielen Dank“), muss Windows den Zugriff erlauben: `Einstellungen > Datenschutz und Sicherheit > Mikrofon`, dort „Mikrofonzugriff“ und „Desktop-Apps den Zugriff auf Ihr Mikrofon erlauben“ einschalten.
+
   In WSL gibt es kein Vulkan für die Grafikkarte, Mundwerk rechnet dort auf der CPU. Für GPU-Tempo die Windows-Version nutzen.
 
 ## Selbst bauen
