@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-11-04 21:31'
-updated_date: '2026-11-04 21:38'
+updated_date: '2026-11-04 21:45'
 labels: []
 dependencies: []
 priority: high
@@ -29,7 +29,7 @@ Ein UX-Review der ersten Oberfläche fand einen Vertrauensbruch (die Auswahl zei
 - [x] #6 Bei Mindestfenstergröße ist nichts abgeschnitten oder überlappt
 - [ ] #7 Protokoll ist einklappbar und öffnet sich beim ersten Start, beim Download und bei Fehlern
 - [ ] #8 Tastenkürzel `Strg+R` (Aufnahme) und `Strg+Shift+C` (Kopieren) funktionieren
-- [ ] #9 Neuer Text wird an der Cursorposition eingefügt
+- [x] #9 Neuer Text wird an der Cursorposition eingefügt
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -47,4 +47,6 @@ Ein UX-Review der ersten Oberfläche fand einen Vertrauensbruch (die Auswahl zei
 
 <!-- SECTION:NOTES:BEGIN -->
 Per Screenshot unter WSL geprüft: Auto-Laden beim Start, Pegel während der Aufnahme, `Strg+R`, Fortschrittsbalken (23 / 141 MB), Abbrechen (`.part` entfernt, Fehler rot mit ⚠), voller Download von `base` mit Prüfsumme, Rückgängig nach Leeren, „Kopiert ✓“, Protokoll öffnet bei Download und Fehler, 640×480 ohne Überlappung. Stille-Erkennung, Einfügen am Cursor und Pegelskala per Unit-Test. Nicht live geprüft: Auto-Laden beim Wechsel auf ein vorhandenes Modell, stumme Aufnahme, `Strg+Shift+C`, Einfügen mitten im Text, Protokoll beim allerersten Start. Raumrauschen ohne Sprache ergibt weiterhin kurze Halluzinationen („Ja.“) – die Stille-Erkennung fängt nur echte Stille.
+
+Einfügen am Cursor live geprüft: „Okay.“ diktiert, Cursor davor gesetzt, zweites Diktat ergab „Ja. Okay.“. Der Nutzer hatte zuerst Text am Ende gesehen, hat das nach Rückfrage aber nicht weiter verfolgt.
 <!-- SECTION:NOTES:END -->
