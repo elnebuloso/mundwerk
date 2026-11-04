@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-11-04 20:48'
-updated_date: '2026-11-04 20:52'
+updated_date: '2026-11-04 22:55'
 labels: []
 dependencies: []
 priority: high
@@ -22,7 +22,7 @@ Die App nutzt automatisch eine GPU und fällt sonst auf die CPU zurück. Bisher 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [ ] #1 Eine Fußzeile zeigt das Rechenwerk, z. B. GPU-Name mit Vulkan oder CPU
-- [ ] #2 Bei CPU nennt sie den Grund: keine Vulkan-GPU gefunden oder ohne GPU-Unterstützung gebaut
+- [x] #2 Bei CPU nennt sie den Grund: keine Vulkan-GPU gefunden oder ohne GPU-Unterstützung gebaut
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -37,4 +37,6 @@ Die App nutzt automatisch eine GPU und fällt sonst auf die CPU zurück. Bisher 
 
 <!-- SECTION:NOTES:BEGIN -->
 Feature `raw-api` von `whisper-rs` nötig. Unter WSL geprüft: „CPU – keine Vulkan-fähige GPU gefunden“. Der GPU-Zweig ist nur auf Windows prüfbar (TASK-8). Grenze: scheitert die Initialisierung der gefundenen GPU in whisper.cpp, zeigt die Fußzeile trotzdem die GPU.
+
+CPU-Grund „keine Vulkan-fähige GPU gefunden“ per Screenshot bestätigt. GPU-Zweig (AC 1) wird mit TASK-8 unter Windows geprüft.
 <!-- SECTION:NOTES:END -->

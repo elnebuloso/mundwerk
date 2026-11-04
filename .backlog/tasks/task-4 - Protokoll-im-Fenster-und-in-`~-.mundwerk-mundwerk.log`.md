@@ -1,11 +1,11 @@
 ---
 id: TASK-4
 title: Protokoll im Fenster und in `~/.mundwerk/mundwerk.log`
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-11-04 20:48'
-updated_date: '2026-11-04 21:06'
+updated_date: '2026-11-04 22:55'
 labels: []
 dependencies:
   - TASK-2
@@ -42,3 +42,9 @@ Zeitangabe: Sekunden seit Start (kein Zeitzonen-Crate). Datei geprüft: Startzei
 
 Vom Nutzer im Fenster gesehen: Prüfsumme, Speicherort, Laden, Transkriptionsdauer.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Protokoll im einklappbaren Bereich „Protokoll“ und in `~/.mundwerk/mundwerk.log` (Sekunden seit Start). Download, Prüfsumme, Speicherort, Laden und Texterkennung werden protokolliert. Unter WSL geprüft.
+<!-- SECTION:FINAL_SUMMARY:END -->

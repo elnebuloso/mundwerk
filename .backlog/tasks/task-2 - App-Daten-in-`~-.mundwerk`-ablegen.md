@@ -1,11 +1,11 @@
 ---
 id: TASK-2
 title: App-Daten in `~/.mundwerk` ablegen
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-11-04 20:48'
-updated_date: '2026-11-04 21:06'
+updated_date: '2026-11-04 22:55'
 labels: []
 dependencies: []
 priority: high
@@ -40,3 +40,9 @@ Geprüft unter WSL: der Erststart legt `/home/dev/.mundwerk` an und protokollier
 
 Download in der App landete in `/home/dev/.mundwerk/models/ggml-large-v3-turbo-q5_0.bin`. Windows-Pfad folgt mit TASK-8.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Modelle, Protokoll und Theme liegen unter `~/.mundwerk` (Windows `%USERPROFILE%\.mundwerk`). Neu angelegter Ordner wird protokolliert. Unter WSL geprüft; Windows-Pfad folgt mit TASK-8.
+<!-- SECTION:FINAL_SUMMARY:END -->

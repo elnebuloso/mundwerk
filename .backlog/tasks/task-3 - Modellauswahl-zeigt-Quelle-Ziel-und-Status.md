@@ -1,11 +1,11 @@
 ---
 id: TASK-3
 title: 'Modellauswahl zeigt Quelle, Ziel und Status'
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-11-04 20:48'
-updated_date: '2026-11-04 21:07'
+updated_date: '2026-11-04 22:55'
 labels: []
 dependencies:
   - TASK-2
@@ -23,7 +23,7 @@ Der Nutzer soll vor dem Download sehen, welche Modelle es gibt, woher sie gelade
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [x] #1 Jedes Modell in der Auswahl trägt ein Kennzeichen: grün „vorhanden“ oder orange „nicht heruntergeladen“, lesbar auch ohne Farbe
-- [ ] #2 Für das gewählte Modell zeigt das Fenster die Download-URL und den Zielpfad
+- [x] #2 Für das gewählte Modell zeigt das Fenster die Download-URL und den Zielpfad
 - [x] #3 Der Button heißt „Herunterladen und laden“, wenn das Modell fehlt
 <!-- AC:END -->
 
@@ -41,4 +41,12 @@ Der Nutzer soll vor dem Download sehen, welche Modelle es gibt, woher sie gelade
 Umgesetzt in `src/main.rs` (`model_label`, Quelle/Ziel unter der Leiste, Buttontext). Am Bildschirm noch nicht angesehen.
 
 Vom Nutzer bestätigt: Kennzeichen grün/orange mit Zeichen und Wort gut lesbar; „Herunterladen und laden“ für fehlendes Modell genutzt.
+
+Quelle und Ziel per Screenshot unter WSL bestätigt.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Modellauswahl zeigt ●/○ mit Wort, Download-URL und Zielpfad; fehlendes Modell bietet „Herunterladen (Größe)“. Per Screenshot und vom Nutzer bestätigt.
+<!-- SECTION:FINAL_SUMMARY:END -->
