@@ -13,7 +13,7 @@ use cpal::{FromSample, SizedSample};
 use eframe::egui;
 use egui::text::{LayoutJob, TextFormat};
 use sha2::{Digest, Sha256};
-use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
+use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters, WhisperVadContext, WhisperVadContextParams};
 
 /// (file name, purpose, download size)
 const MODELS: &[(&str, &str, &str)] = &[
@@ -40,12 +40,22 @@ const STOP_WITHOUT_SPEECH_SECS: f32 = 15.0;
 const SPEECH_OVER_FLOOR: f32 = 4.0;
 // RMS per 100 ms, -54 dBFS: quiet microphones put speech well below the peak-based SILENCE
 const SPEECH_MIN_RMS: f32 = 0.002;
+const VAD_MODEL: &str = "ggml-silero-v5.1.2.bin";
+const VAD_URL: &str = "https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v5.1.2.bin";
+/// Samples at 16 kHz per speech probability of the Silero model.
+const VAD_FRAME: usize = 512;
+const VAD_THRESHOLD: f32 = 0.5;
+// about 0.5 s: the auto-stop countdown stays fluid, and each call is long enough for the model to settle
+const VAD_STEP_FRAMES: usize = 16;
+// the model forgets everything between calls, so each call starts this many frames early to warm up again
+const VAD_CONTEXT_FRAMES: usize = 16;
 
 enum Msg {
     /// Some((done, total)) while downloading, None while loading into memory.
     Progress(Option<(u64, u64)>),
     Log(String),
     Loaded(Arc<WhisperContext>, String),
+    Vad(WhisperVadContext),
     Text(String),
     Error(String),
     /// The global shortcut was pressed, possibly while another window has the focus.
@@ -139,12 +149,16 @@ struct Recording {
     samples: Arc<Mutex<Vec<f32>>>,
     rate: u32,
     device: String,
+    /// Per VAD frame so far, whether it holds speech; empty without the VAD model.
+    speech: Vec<bool>,
 }
 
 struct App {
     model: usize,
     lang: usize,
     ctx: Option<Arc<WhisperContext>>,
+    /// Speech detection by sound; None falls back to the input level.
+    vad: Option<WhisperVadContext>,
     loaded: String,
     loading: bool,
     progress: Option<(u64, u64)>,
@@ -185,6 +199,10 @@ fn model_url(name: &str) -> String {
     format!("https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-{name}.bin")
 }
 
+fn vad_path() -> PathBuf {
+    app_dir().join("models").join(VAD_MODEL)
+}
+
 /// Names the device whisper.cpp will compute on, and why.
 fn compute_device() -> String {
     if !cfg!(any(feature = "vulkan", feature = "metal")) {
@@ -206,19 +224,46 @@ fn compute_device() -> String {
     format!("CPU – keine {GPU_API}-fähige GPU gefunden")
 }
 
-/// Downloads the model from Hugging Face if missing, then loads it into memory.
-fn load_model(name: String, cancel: Arc<AtomicBool>, tx: Sender<Msg>, ui: egui::Context) {
+/// Downloads the file from Hugging Face if missing.
+fn fetch(url: &str, path: &Path, cancel: &AtomicBool, send: &impl Fn(Msg)) -> Result<(), String> {
+    if path.exists() {
+        send(Msg::Log(format!("Vorhanden: {}", path.display())));
+        return Ok(());
+    }
+    download(url, path, cancel, send)
+}
+
+fn load_vad(cancel: &AtomicBool, send: &impl Fn(Msg)) -> Result<WhisperVadContext, String> {
+    let path = vad_path();
+    fetch(VAD_URL, &path, cancel, send)?;
+    let vad = open_vad(&path)?;
+    send(Msg::Log("Spracherkennung per VAD (Silero) bereit".into()));
+    Ok(vad)
+}
+
+fn open_vad(path: &Path) -> Result<WhisperVadContext, String> {
+    let mut params = WhisperVadContextParams::default();
+    // measured on an i5-3570K: 2 s of audio in 23 ms on one thread, 3.9 s on four; each 32 ms frame is too small to share
+    params.set_n_threads(1);
+    WhisperVadContext::new(path.to_str().ok_or("Pfad ungültig")?, params).map_err(|e| format!("Modell konnte nicht geladen werden: {e}"))
+}
+
+/// Downloads the model from Hugging Face if missing, then loads it into memory; with `with_vad` the VAD model first.
+fn load_model(name: String, with_vad: bool, cancel: Arc<AtomicBool>, tx: Sender<Msg>, ui: egui::Context) {
     let send = |m| {
         let _ = tx.send(m);
         ui.request_repaint();
     };
+    if with_vad {
+        // dictation works without it, on the input level
+        match load_vad(&cancel, &send) {
+            Ok(vad) => send(Msg::Vad(vad)),
+            Err(e) => send(Msg::Log(format!("Spracherkennung per VAD nicht verfügbar, Mundwerk erkennt Sprache am Pegel: {e}"))),
+        }
+    }
     let result = (|| -> Result<Arc<WhisperContext>, String> {
         let path = model_path(&name);
-        if path.exists() {
-            send(Msg::Log(format!("Vorhanden: {}", path.display())));
-        } else {
-            download(&name, &path, &cancel, &send)?;
-        }
+        fetch(&model_url(&name), &path, &cancel, &send)?;
         send(Msg::Progress(None));
         send(Msg::Log(format!("Lade {name} in den Speicher ...")));
         let ctx = WhisperContext::new_with_params(path.to_str().ok_or("Pfad ungültig")?, WhisperContextParameters::default())
@@ -231,14 +276,13 @@ fn load_model(name: String, cancel: Arc<AtomicBool>, tx: Sender<Msg>, ui: egui::
     });
 }
 
-fn download(name: &str, path: &Path, cancel: &AtomicBool, send: &impl Fn(Msg)) -> Result<(), String> {
-    let url = model_url(name);
+fn download(url: &str, path: &Path, cancel: &AtomicBool, send: &impl Fn(Msg)) -> Result<(), String> {
     std::fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
     send(Msg::Log(format!("Lade herunter: {url}")));
     // don't follow the redirect: only Hugging Face's own answer carries the file's SHA-256
     let agent: ureq::Agent = ureq::Agent::config_builder().max_redirects(0).build().into();
     let (expected, location) = {
-        let first = agent.get(&url).call().map_err(|e| format!("Download fehlgeschlagen: {e}"))?;
+        let first = agent.get(url).call().map_err(|e| format!("Download fehlgeschlagen: {e}"))?;
         let header = |k: &str| first.headers().get(k).and_then(|v| v.to_str().ok()).map(str::to_owned);
         let expected = header("x-linked-etag").ok_or("Hugging Face hat keine Prüfsumme geliefert")?;
         let location = header("location").ok_or("Hugging Face hat keine Download-Adresse geliefert")?;
@@ -269,7 +313,8 @@ fn download(name: &str, path: &Path, cancel: &AtomicBool, send: &impl Fn(Msg)) -
             last = done;
             send(Msg::Progress(Some((done, total))));
         }
-        if total > 0 && done * 100 / total >= logged_pct + 10 {
+        // a file under 10 MB is done before steps of 10 % could tell anything
+        if total >= 10 << 20 && done * 100 / total >= logged_pct + 10 {
             logged_pct = done * 100 / total / 10 * 10;
             send(Msg::Log(format!("Download {logged_pct} % ({} / {} MB)", done >> 20, total >> 20)));
         }
@@ -362,11 +407,30 @@ fn speech_threshold(levels: &[f32]) -> (f32, f32) {
     (floor, (floor * SPEECH_OVER_FLOOR).max(SPEECH_MIN_RMS))
 }
 
-/// For each 100 ms window of the samples, whether it holds speech.
+/// For each 100 ms window of the samples, whether its level says speech.
 fn speech_windows(samples: &[f32], rate: u32) -> Vec<bool> {
     let levels = window_levels(samples, rate);
     let (_, threshold) = speech_threshold(&levels);
     levels.iter().map(|&r| r > threshold).collect()
+}
+
+/// Extends `speech` by the VAD's verdict on the frames of the recording it doesn't cover yet: every
+/// `VAD_STEP_FRAMES` while recording, every last frame with `finish`.
+fn detect_speech(vad: &mut WhisperVadContext, samples: &[f32], rate: u32, speech: &mut Vec<bool>, finish: bool) -> Result<(), String> {
+    let ratio = rate.max(1) as f64 / 16000.0;
+    let resampled = (samples.len() as f64 / ratio) as usize;
+    let frames = if finish { resampled.div_ceil(VAD_FRAME) } else { resampled / VAD_FRAME };
+    if frames < speech.len() + if finish { 1 } else { VAD_STEP_FRAMES } {
+        return Ok(());
+    }
+    let from = speech.len().saturating_sub(VAD_CONTEXT_FRAMES);
+    let start = (from as f64 * VAD_FRAME as f64 * ratio) as usize;
+    let end = ((frames * VAD_FRAME) as f64 * ratio).ceil() as usize;
+    let audio = resample(&samples[start..end.min(samples.len())], rate);
+    vad.detect_speech(&audio).map_err(|e| format!("VAD fehlgeschlagen: {e}"))?;
+    let new = vad.probabilities().iter().skip(speech.len() - from).take(frames - speech.len());
+    speech.extend(new.map(|&p| p > VAD_THRESHOLD));
+    Ok(())
 }
 
 /// One log line with the levels the speech detection decided on, to tune it on other microphones.
@@ -378,26 +442,29 @@ fn level_report(samples: &[f32], rate: u32) -> String {
 }
 
 /// Seconds left until the recording should stop for lack of speech, and whether speech was heard.
-fn secs_until_auto_stop(samples: &[f32], rate: u32) -> (f32, bool) {
-    let rate = rate.max(10);
-    // only the last 30 s: older speech would have ended the recording long ago, and the cost stays flat
-    let tail = &samples[samples.len().saturating_sub(rate as usize * 30)..];
-    let speech = speech_windows(tail, rate);
+/// `speech` holds one verdict per frame of `frame_secs`, up to the end of what was analysed.
+fn secs_until_auto_stop(speech: &[bool], frame_secs: f32, recorded_secs: f32) -> (f32, bool) {
     match speech.iter().rposition(|&s| s) {
-        Some(last) => (STOP_AFTER_SPEECH_SECS - (speech.len() - 1 - last) as f32 / 10.0, true),
-        None => (STOP_WITHOUT_SPEECH_SECS - samples.len() as f32 / rate as f32, false),
+        Some(last) => (STOP_AFTER_SPEECH_SECS - (speech.len() - 1 - last) as f32 * frame_secs, true),
+        None => (STOP_WITHOUT_SPEECH_SECS - recorded_secs, false),
     }
 }
 
+/// Speech verdicts by level for the last 30 s, 100 ms each: older speech would have ended the
+/// recording long ago, and the cost stays flat.
+fn recent_speech_windows(samples: &[f32], rate: u32) -> Vec<bool> {
+    speech_windows(&samples[samples.len().saturating_sub(rate as usize * 30)..], rate)
+}
+
 /// The stretch of the recording from the first to the last speech, with a margin, or None without speech.
-/// Whisper invents phrases like "Vielen Dank." for silence, so it only gets the spoken part.
-fn speech_span(audio: &[f32], rate: u32) -> Option<&[f32]> {
-    let rate = rate.max(10) as usize;
-    let speech = speech_windows(audio, rate as u32);
+/// `speech` holds one verdict per `frame_len` samples. Whisper invents phrases like "Vielen Dank."
+/// for silence, so it only gets the spoken part.
+fn speech_span<'a>(audio: &'a [f32], rate: u32, speech: &[bool], frame_len: usize) -> Option<&'a [f32]> {
+    let rate = rate as usize;
     let first = speech.iter().position(|&s| s)?;
     let last = speech.iter().rposition(|&s| s)?;
-    let start = (first * rate / 10).saturating_sub(rate * 3 / 10);
-    let end = ((last + 1) * rate / 10 + rate / 2).min(audio.len());
+    let start = (first * frame_len).saturating_sub(rate * 3 / 10);
+    let end = ((last + 1) * frame_len + rate / 2).min(audio.len());
     Some(&audio[start..end])
 }
 
@@ -471,7 +538,7 @@ fn start_recording() -> Result<Recording, String> {
     }
     .map_err(|e| e.to_string())?;
     stream.play().map_err(|e| e.to_string())?;
-    Ok(Recording { _stream: stream, samples, rate: cfg.sample_rate, device })
+    Ok(Recording { _stream: stream, samples, rate: cfg.sample_rate, device, speech: Vec::new() })
 }
 
 /// `with_state` spells out whether the model is on disk; the closed combo box leaves that to the dot and the button beside it.
@@ -564,6 +631,7 @@ impl App {
             model: 0,
             lang: 0,
             ctx: None,
+            vad: None,
             loaded: String::new(),
             loading: false,
             progress: None,
@@ -648,13 +716,31 @@ impl App {
         if !model_path(name).exists() {
             self.open_log = true;
         }
-        let (cancel, tx, ui) = (self.cancel.clone(), self.tx.clone(), ui_ctx.clone());
-        std::thread::spawn(move || load_model(name.into(), cancel, tx, ui));
+        let (cancel, tx, ui, with_vad) = (self.cancel.clone(), self.tx.clone(), ui_ctx.clone(), self.vad.is_none());
+        std::thread::spawn(move || load_model(name.into(), with_vad, cancel, tx, ui));
+    }
+
+    /// Brings the recording's VAD verdicts up to date; on failure falls back to the level for good.
+    fn update_speech(&mut self, finish: bool) {
+        let (Some(vad), Some(r)) = (&mut self.vad, &mut self.rec) else { return };
+        let result = detect_speech(vad, &r.samples.lock().unwrap(), r.rate, &mut r.speech, finish);
+        if let Err(e) = result {
+            self.vad = None;
+            self.log(format!("{e}, Mundwerk erkennt Sprache ab jetzt am Pegel"));
+        }
     }
 
     fn auto_stop(&mut self, ui_ctx: &egui::Context) {
+        self.update_speech(false);
         let Some(r) = &self.rec else { return };
-        let (left, heard) = secs_until_auto_stop(&r.samples.lock().unwrap(), r.rate);
+        let samples = r.samples.lock().unwrap();
+        let recorded_secs = samples.len() as f32 / r.rate.max(1) as f32;
+        let (left, heard) = if self.vad.is_some() {
+            secs_until_auto_stop(&r.speech, VAD_FRAME as f32 / 16000.0, recorded_secs)
+        } else {
+            secs_until_auto_stop(&recent_speech_windows(&samples, r.rate.max(10)), 0.1, recorded_secs)
+        };
+        drop(samples);
         if left > 0.0 {
             self.status = match left {
                 l if l <= 3.0 => format!("Aufnahme läuft … Stille, stoppt in {} s", l.ceil()),
@@ -673,6 +759,9 @@ impl App {
     /// `audible`: started or stopped outside the window (global shortcut, silence), where only a cue tells the user.
     fn toggle(&mut self, ui_ctx: &egui::Context, audible: bool) {
         self.error = None;
+        if self.rec.is_some() {
+            self.update_speech(true);
+        }
         match self.rec.take() {
             None => match start_recording() {
                 Ok(r) => {
@@ -702,10 +791,17 @@ impl App {
                     self.fail(format!("Kein Ton aufgenommen. {MIC_HINT}"));
                     return;
                 }
-                self.log(level_report(&audio, 16000));
+                let span = if self.vad.is_some() {
+                    let found = r.speech.iter().filter(|&&s| s).count() as f32 * VAD_FRAME as f32 / 16000.0;
+                    self.log(format!("Sprache laut VAD: {} s von {} s", decimal(found), decimal(audio.len() as f32 / 16000.0)));
+                    speech_span(&audio, 16000, &r.speech, VAD_FRAME)
+                } else {
+                    self.log(level_report(&audio, 16000));
+                    speech_span(&audio, 16000, &speech_windows(&audio, 16000), 1600)
+                };
                 // Without detected speech the whole recording still goes to Whisper: a microphone the
                 // detection misjudges must not cost a dictation, an invented "Vielen Dank." is cheaper.
-                let audio = match speech_span(&audio, 16000) {
+                let audio = match span {
                     Some(speech) => speech.to_vec(),
                     None => {
                         self.log("Keine Sprache erkannt, die ganze Aufnahme geht an die Texterkennung".into());
@@ -736,6 +832,7 @@ impl App {
         match m {
             Msg::Progress(p) => self.progress = p,
             Msg::Log(s) => self.log(s),
+            Msg::Vad(vad) => self.vad = Some(vad),
             Msg::Loaded(c, name) => {
                 self.ctx = Some(c);
                 self.log(format!("Bereit: {name}"));
@@ -805,7 +902,8 @@ impl App {
         ui.add_space(8.0);
         let name = self.selected();
         egui::Grid::new("model_info").num_columns(2).spacing([12.0, 4.0]).min_row_height(18.0).show(ui, |ui| {
-            for (label, value) in [("Quelle", model_url(name)), ("Ziel", model_path(name).display().to_string())] {
+            let vad = format!("{} – {VAD_URL}", vad_path().display());
+            for (label, value) in [("Quelle", model_url(name)), ("Ziel", model_path(name).display().to_string()), ("Sprachfilter", vad)] {
                 ui.label(egui::RichText::new(label).weak());
                 ui.add(egui::Label::new(egui::RichText::new(&value).monospace()).truncate()).on_hover_text(&value);
                 ui.end_row();
@@ -1089,6 +1187,14 @@ mod tests {
         assert!(is_silent(&[]));
     }
 
+    fn level_auto_stop(a: &[f32], rate: u32) -> (f32, bool) {
+        secs_until_auto_stop(&recent_speech_windows(a, rate), 0.1, a.len() as f32 / rate as f32)
+    }
+
+    fn level_span(a: &[f32], rate: u32) -> Option<&[f32]> {
+        speech_span(a, rate, &speech_windows(a, rate), rate as usize / 10)
+    }
+
     /// A square wave at 1 kHz with one amplitude per 100 ms window.
     fn audio(windows: &[f32]) -> Vec<f32> {
         windows.iter().flat_map(|&a| [a, -a].repeat(50)).collect()
@@ -1100,18 +1206,18 @@ mod tests {
         let mut a = audio(&[noise; 5]);
         a.extend(audio(&[0.2; 10]));
         a.extend(audio(&[noise; 10])); // 1 s pause
-        let (left, heard) = secs_until_auto_stop(&a, 1000);
+        let (left, heard) = level_auto_stop(&a, 1000);
         assert!(heard);
         assert!((left - 3.0).abs() < 1e-4, "{left}");
         a.extend(audio(&[noise; 30]));
-        assert!(secs_until_auto_stop(&a, 1000).0 <= 0.0);
+        assert!(level_auto_stop(&a, 1000).0 <= 0.0);
     }
 
     #[test]
     fn auto_stop_ignores_steady_room_noise() {
         // room noise above the absolute silence threshold still is no speech
         let a = audio(&[0.03; 160]);
-        let (left, heard) = secs_until_auto_stop(&a, 1000);
+        let (left, heard) = level_auto_stop(&a, 1000);
         assert!(!heard);
         assert!(left < 0.0);
     }
@@ -1119,14 +1225,14 @@ mod tests {
     #[test]
     fn auto_stop_without_speech_waits_longer() {
         let a = audio(&[0.0; 50]); // digital zero, e.g. a muted device
-        assert_eq!(secs_until_auto_stop(&a, 1000), (STOP_WITHOUT_SPEECH_SECS - 5.0, false));
+        assert_eq!(level_auto_stop(&a, 1000), (STOP_WITHOUT_SPEECH_SECS - 5.0, false));
     }
 
     #[test]
     fn auto_stop_hears_speech_from_the_first_moment() {
         let mut a = audio(&[0.2, 0.25, 0.15]);
         a.extend(audio(&[0.002; 2]));
-        let (left, heard) = secs_until_auto_stop(&a, 1000);
+        let (left, heard) = level_auto_stop(&a, 1000);
         assert!(heard);
         assert!((left - 3.8).abs() < 1e-4, "{left}");
     }
@@ -1170,7 +1276,7 @@ mod tests {
         let mut a = audio(&[0.003; 10]);
         a.extend(audio(&[0.2; 5]));
         a.extend(audio(&[0.003; 20]));
-        let span = speech_span(&a, 1000).unwrap();
+        let span = level_span(&a, 1000).unwrap();
         assert_eq!(span.len(), 300 + 500 + 500);
         assert_eq!(span.as_ptr(), a[700..].as_ptr());
     }
@@ -1181,21 +1287,21 @@ mod tests {
         let mut a = audio(&[0.0005; 10]);
         a.extend(audio(&[0.006; 10]));
         a.extend(audio(&[0.0005; 10]));
-        assert_eq!(speech_span(&a, 1000).unwrap().len(), 300 + 1000 + 500);
-        assert!(secs_until_auto_stop(&a, 1000).1);
+        assert_eq!(level_span(&a, 1000).unwrap().len(), 300 + 1000 + 500);
+        assert!(level_auto_stop(&a, 1000).1);
     }
 
     #[test]
     fn speech_span_is_none_without_speech() {
-        assert!(speech_span(&audio(&[0.03; 50]), 1000).is_none());
-        assert!(speech_span(&[], 16000).is_none());
+        assert!(level_span(&audio(&[0.03; 50]), 1000).is_none());
+        assert!(level_span(&[], 16000).is_none());
     }
 
     #[test]
     fn speech_span_keeps_margins_inside_the_recording() {
         let mut a = audio(&[0.2; 2]);
         a.extend(audio(&[0.003; 2]));
-        assert_eq!(speech_span(&a, 1000).unwrap().len(), a.len());
+        assert_eq!(level_span(&a, 1000).unwrap().len(), a.len());
     }
 
     #[test]
@@ -1237,3 +1343,4 @@ mod tests {
         assert_eq!(t, "Ä x Ö y");
     }
 }
+

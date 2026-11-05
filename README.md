@@ -2,7 +2,7 @@
 
 Lokales Diktieren mit Whisper: sprechen, Text kopieren. Offline, ohne Konto.
 
-Ein kleines Fenster: **Aufnahme starten → sprechen → stoppen**. Der erkannte Text landet im Textfeld, wo du ihn korrigierst und in die Zwischenablage kopierst. Die Spracherkennung läuft komplett auf deinem Rechner ([whisper.cpp](https://github.com/ggml-org/whisper.cpp)). Ins Netz geht Mundwerk nur, um ein Modell herunterzuladen – nie mit deinem Audio.
+Ein kleines Fenster: **Aufnahme starten → sprechen → stoppen**. Der erkannte Text landet im Textfeld, wo du ihn korrigierst und in die Zwischenablage kopierst. Die Spracherkennung läuft komplett auf deinem Rechner ([whisper.cpp](https://github.com/ggml-org/whisper.cpp)). Ins Netz geht Mundwerk nur, um Modelle herunterzuladen – nie mit deinem Audio.
 
 ## Installation
 
@@ -74,7 +74,7 @@ Wurde das versehentlich abgelehnt, meldet Mundwerk „Kein Ton aufgenommen“. D
 ## Erster Start
 
 1. Modell auswählen – voreingestellt ist das empfohlene `large-v3-turbo-q5_0`.
-2. „Herunterladen (0,5 GB)“ klicken. Der Download lässt sich mit „Abbrechen“ stoppen.
+2. „Herunterladen (0,5 GB)“ klicken. Vorher holt Mundwerk einmalig den Sprachfilter (0,9 MB, siehe [Modelle](#modelle)). Der Download lässt sich mit „Abbrechen“ stoppen.
 3. Sobald „✓ geladen“ erscheint: „Aufnahme starten“, sprechen, „Aufnahme stoppen“.
 
 Ab dem nächsten Start lädt Mundwerk das Modell selbst.
@@ -117,7 +117,8 @@ Das Kürzel wirkt unter Windows, auf dem Mac und unter Linux mit X11. Unter Linu
 - „Leeren“ löscht den ganzen Text. „Rückgängig“ holt ihn zurück, bis du im Textfeld etwas änderst; was du inzwischen diktiert hast, bleibt dahinter stehen.
 - Die Sprache stellst du rechts neben dem Aufnahme-Button ein: „Deutsch“, „Englisch“ oder „Automatisch“.
 - Mundwerk startet dunkel, unabhängig von der Systemeinstellung. Rechts in der Fußzeile schaltest du mit ☀ auf hell und mit 🌙 (ganz rechts) zurück auf dunkel; die Wahl gilt auch beim nächsten Start.
-- Whisper erfindet bei Stille gern kurze Sätze wie „Vielen Dank.“ oder „Ja.“. Mundwerk gibt deshalb nur den Teil der Aufnahme weiter, in dem gesprochen wurde, und lässt Stille davor und danach weg. Als Sprache zählt, was deutlich lauter ist als die leiseste Stelle der Aufnahme: Gleichmäßiges Rauschen (Lüfter, Raum) fällt so heraus, Klopfen oder Tippen nicht. Findet Mundwerk gar keine Sprache, geht vorsichtshalber die ganze Aufnahme an Whisper – dann kann doch einmal ein erfundener Satz kommen, aber kein Diktat geht verloren. Die gemessenen Pegel stehen nach jeder Aufnahme im Protokoll („Pegel (RMS je 100 ms): …“).
+- Whisper erfindet bei Stille gern kurze Sätze wie „Vielen Dank.“ oder „Ja.“. Mundwerk gibt deshalb nur den Teil der Aufnahme weiter, in dem gesprochen wurde, und lässt Stille davor und danach weg. Ob gesprochen wird, erkennt der Sprachfilter (Silero-VAD) am Klang, nicht an der Lautstärke: Leise eingestellte Mikrofone funktionieren, Lüfter- und Raumrauschen zählen nicht als Sprache. Wie viel Sprache er gefunden hat, steht nach jeder Aufnahme im Protokoll („Sprache laut VAD: …“). Findet Mundwerk gar keine Sprache, geht vorsichtshalber die ganze Aufnahme an Whisper – dann kann doch einmal ein erfundener Satz kommen, aber kein Diktat geht verloren.
+- Fehlt der Sprachfilter (etwa weil der Download scheiterte), entscheidet Mundwerk nach der Lautstärke und schreibt das ins Protokoll. Als Sprache zählt dann, was deutlich lauter ist als die leiseste Stelle der Aufnahme; Klopfen und Tippen zählen mit, und bei leisen Mikrofonen kann der Auto-Stopp erst nach 15 Sekunden kommen. Beim nächsten Laden eines Modells versucht Mundwerk den Download erneut.
 
 ## Modelle
 
@@ -129,7 +130,9 @@ Das Kürzel wirkt unter Windows, auf dem Mac und unter Linux mit X11. Unter Linu
 
 In der Auswahl steht ● „vorhanden“ für heruntergeladene Modelle und ○ „noch nicht heruntergeladen“ für die übrigen. Ein vorhandenes Modell wird beim Auswählen sofort geladen. Unter der Auswahl stehen die Download-Adresse und der Speicherort des gewählten Modells.
 
-Geladen wird von `https://huggingface.co/ggerganov/whisper.cpp`. Nach dem Download vergleicht Mundwerk die SHA-256-Prüfsumme mit der, die Hugging Face veröffentlicht, und verwirft die Datei, wenn sie nicht stimmt.
+Geladen wird von `https://huggingface.co/ggerganov/whisper.cpp`. Dazu kommt einmalig der Sprachfilter `ggml-silero-v5.1.2.bin` (0,9 MB) von `https://huggingface.co/ggml-org/whisper-vad`. Er erkennt, wann gesprochen wird, für den Auto-Stopp und den Zuschnitt der Aufnahme. Speicherort und Quelle stehen in der Zeile „Sprachfilter“ unter der Modellauswahl.
+
+Nach jedem Download vergleicht Mundwerk die SHA-256-Prüfsumme mit der, die Hugging Face veröffentlicht, und verwirft die Datei, wenn sie nicht stimmt.
 
 ## GPU oder CPU
 
@@ -144,7 +147,7 @@ Auf der CPU dauert die Erkennung ein Vielfaches der Aufnahme: Auf einem i5-3570K
 
 Alles liegt in einem Ordner: `%USERPROFILE%\.mundwerk\` unter Windows, `~/.mundwerk/` unter Linux und macOS.
 
-- `models/` – die heruntergeladenen Modelle
+- `models/` – die heruntergeladenen Modelle und der Sprachfilter
 - `mundwerk.log` – das Protokoll, dieselben Zeilen wie unter „Protokoll“ im Fenster, mit Sekunden seit dem Programmstart
 - `theme` – `light`, wenn du auf hell umgeschaltet hast
 
