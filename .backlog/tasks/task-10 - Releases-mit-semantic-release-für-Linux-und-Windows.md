@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@claude'
 created_date: '2026-11-04 21:49'
-updated_date: '2026-11-05 19:28'
+updated_date: '2026-11-05 19:34'
 labels: []
 dependencies: []
 priority: high
@@ -45,6 +45,8 @@ Mit gefülltem Cache (Lauf für `v0.3.0`): Build 11 s Linux / 30 s Windows statt
 Ausfall bei `v0.6.0` (Lauf 42062838136): Tag gepusht, dann lehnte GitHub den Push von `refs/notes/semantic-release-v0.6.0` mit „remote rejected (failed)“ ab, Release fehlte. Ein Neustart hilft nicht (semantic-release sieht den Tag als veröffentlicht). Behoben mit `gh release create v0.6.0 --verify-tag` und den Artefakten des Laufs (Version 0.6.0 im Binary bzw. `Info.plist` geprüft). Die fehlende Notiz stört nicht: `v0.7.0` und `v0.8.0` liefen danach normal. Außerdem warteten Mac-Jobs zweimal lange auf einen Runner (einmal nach 15 min abgebrochen, per `gh run rerun --failed` neu gestartet).
 
 PR-Prüfung mit Wegwerf-Branch `test/pr-ci` (Entwurfs-PR #1, Lauf 42093753307, Stand von `main` mit VAD und `audio_ctx`-Fix): `version` grün mit „This run was triggered by a pull request and therefore a new version won't be published.“, die Builds für Linux, Windows und macOS sind grün mit je „17 passed“, `release` übersprungen, kein neuer Tag, kein neues Release (Latest bleibt `v0.9.1`). PR ohne Merge geschlossen, Branch remote und lokal gelöscht.
+
+Gleicher Ausfall bei `v0.10.0` (Lauf 42094378797): Tag gepusht, `refs/notes/semantic-release-v0.10.0` mit „remote rejected (failed)“ abgelehnt, Release fehlte. Gelöst wie bei `v0.6.0`: Artefakte per `gh run download` geholt, Version 0.10.0 in Linux-Binary, `.exe` und `Info.plist` geprüft, dann `gh release create v0.10.0 --verify-tag --latest` mit Release-Text und nachgebauter Commit-Liste. Bisher zweimal in elf Releases.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
