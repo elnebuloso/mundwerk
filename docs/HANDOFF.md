@@ -33,7 +33,7 @@ Die Ziele des Nutzers:
 
 ## Nächste Schritte
 
-1. **Spracherkennung per Silero-VAD** (vorgeschlagen, vom Nutzer noch nicht beauftragt): die Pegelmethode beim Auto-Stopp und beim Zuschnitt durch das VAD von whisper.cpp ersetzen. `whisper-rs` 0.16 bringt `WhisperVadContext` mit. Das Modell ist `ggml-org/whisper-vad`, Datei `ggml-silero-v5.1.2.bin`, 885098 Bytes, SHA-256 `29940d98d42b91fbd05ce489f3ecf7c72f0a42f027e4875919a28fb4c04ea2cf`, und würde mit dem Whisper-Modell mitgeladen. Vorher beim Nutzer nachfragen, ob der Auto-Stopp unter Windows nach 4 s oder erst nach 15 s kommt.
+1. **TASK-19, Spracherkennung per Silero-VAD** (Task angelegt, Umsetzung noch nicht beauftragt): die Pegelmethode beim Auto-Stopp und beim Zuschnitt durch das VAD von whisper.cpp ersetzen. `whisper-rs` 0.16 bringt `WhisperVadContext` mit. Das Modell ist `ggml-org/whisper-vad`, Datei `ggml-silero-v5.1.2.bin`, 885098 Bytes, SHA-256 `29940d98d42b91fbd05ce489f3ecf7c72f0a42f027e4875919a28fb4c04ea2cf`, und würde mit dem Whisper-Modell mitgeladen. Vorher beim Nutzer nachfragen, ob der Auto-Stopp unter Windows nach 4 s oder erst nach 15 s kommt.
 2. **TASK-11:** Rückmeldung der Mac-Kollegen einholen:
    - macOS-Version
    - Lief „Trotzdem öffnen“ wie im README beschrieben?
