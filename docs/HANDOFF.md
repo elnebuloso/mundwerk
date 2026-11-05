@@ -26,13 +26,14 @@ Die Ziele des Nutzers:
   - Das Kürzel funktioniert aus VS Code heraus, auch bei minimiertem Fenster.
   - Die Töne und `Strg+V` funktionieren.
   - Zahlen zum GPU-Tempo hat der Nutzer nicht genannt.
-- **`v0.9.0` war kaputt:** Unter Windows kam immer „Keine Sprache erkannt“. **`v0.9.1`** ist der Hotfix dafür und unter Windows noch **nicht** getestet. Die Ursache ist vermutet, nicht gemessen, Details in TASK-18.
+- **`v0.9.0` war kaputt:** Unter Windows kam immer „Keine Sprache erkannt“. **`v0.9.1`** behebt das, vom Nutzer unter Windows bestätigt (3,6 s Audio in 0,6 s auf der GPU).
+- **Die pegelbasierte Spracherkennung versagt aber auf dem Windows-Mikrofon des Nutzers:** „leisester 0.0077, lautester 0.0178, Sprache ab 0.0306“. Sprache liegt dort nur 2,3-mal (+7 dB) über dem leisesten Abschnitt, Raumrauschen unter WSL ohne Sprache kommt auf das 2,1-fache. Ein Faktor trennt beides nicht. Unter Windows greift deshalb der Zuschnitt auf den Sprachteil nicht (es gibt den Rückfall auf die ganze Aufnahme), und der Auto-Stopp kommt vermutlich erst 15 s nach dem Start statt 4 s nach dem letzten Wort. Die Bestätigung des Nutzers dazu steht aus. Details in TASK-18.
 - **Mac:** `Mundwerk.app` erscheint seit `v0.4.0` mit jedem Release, ist aber noch auf keinem echten Mac gelaufen. Der Nutzer hat die App an Kollegen gegeben.
-- **Backlog:** Offen sind TASK-5, 9, 10, 11 und 18. Was jeweils fehlt, steht in den Notizen (`backlog task view TASK-n --plain`).
+- **Backlog:** Offen sind TASK-5, 9, 10 und 11. Was jeweils fehlt, steht in den Notizen (`backlog task view TASK-n --plain`).
 
 ## Nächste Schritte
 
-1. **TASK-18:** Der Nutzer testet `v0.9.1` unter Windows und schickt die Protokollzeile `Pegel (RMS je 100 ms): leisester …, lautester …, Sprache ab …` von einem Diktat mit Sprechen. Mit diesen Werten werden `SPEECH_MIN_RMS` und `SPEECH_OVER_FLOOR` geprüft und eingestellt.
+1. **Spracherkennung per Silero-VAD** (vorgeschlagen, vom Nutzer noch nicht beauftragt): die Pegelmethode beim Auto-Stopp und beim Zuschnitt durch das VAD von whisper.cpp ersetzen. `whisper-rs` 0.16 bringt `WhisperVadContext` mit. Das Modell ist `ggml-org/whisper-vad`, Datei `ggml-silero-v5.1.2.bin`, 885098 Bytes, SHA-256 `29940d98d42b91fbd05ce489f3ecf7c72f0a42f027e4875919a28fb4c04ea2cf`, und würde mit dem Whisper-Modell mitgeladen. Vorher beim Nutzer nachfragen, ob der Auto-Stopp unter Windows nach 4 s oder erst nach 15 s kommt.
 2. **TASK-11:** Rückmeldung der Mac-Kollegen einholen:
    - macOS-Version
    - Lief „Trotzdem öffnen“ wie im README beschrieben?
@@ -46,7 +47,8 @@ Die Ziele des Nutzers:
 
 ## Offene Entscheidungen
 
-- **Erkennung einstellbar machen?** Der Nutzer hat gefragt, ob man die Pegel in der Oberfläche einstellen sollte. Empfohlen und noch nicht entschieden: keine Zahlen-Regler. Höchstens ein Strich im Pegelbalken, der die Sprachschwelle zeigt, und nur bei Bedarf ein Schalter „Empfindlichkeit“ mit drei Stufen. Entscheiden erst, wenn die Messwerte aus Schritt 1 vorliegen.
+- **Silero-VAD oder Pegel?** Siehe Nächste Schritte, Punkt 1. Empfohlen ist das VAD, entschieden ist noch nichts.
+- **Erkennung einstellbar machen?** Der Nutzer hat gefragt, ob man die Pegel in der Oberfläche einstellen sollte. Empfohlen: keine Zahlen-Regler. Mit dem VAD entfällt die Frage weitgehend. Bleibt es bei der Pegelmethode, höchstens ein Strich im Pegelbalken für die Schwelle.
 - **GPU unter WSL:** Vulkan sieht dort keine NVIDIA-Karte, das ginge nur mit einem CUDA-Build als zweitem Artefakt. Bisher gilt: unter WSL die CPU, für die GPU die Windows-`.exe`.
 - **Sprache der Oberfläche:** im Moment Deutsch. Englisch oder umschaltbar wurde nie besprochen.
 - **Signieren:** Der Nutzer hat entschieden, die `.exe` nicht zu signieren. Die Mac-App ist ebenfalls nur ad-hoc signiert und nicht notarisiert. Beide Wege zum Öffnen („Trotzdem ausführen“ bzw. „Trotzdem öffnen“) stehen im README. Für Windows-Signaturen wäre die SignPath Foundation der erste Schritt, für Open Source kostenlos. Für den Mac kostet das Apple-Konto 99 $ im Jahr.
