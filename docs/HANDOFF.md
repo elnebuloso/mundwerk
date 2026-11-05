@@ -29,7 +29,7 @@ Die Ziele des Nutzers:
 - **`v0.9.0` war kaputt:** Unter Windows kam immer „Keine Sprache erkannt“. **`v0.9.1`** behebt das, vom Nutzer unter Windows bestätigt (3,6 s Audio in 0,6 s auf der GPU).
 - **Die pegelbasierte Spracherkennung versagt aber auf dem Windows-Mikrofon des Nutzers:** „leisester 0.0077, lautester 0.0178, Sprache ab 0.0306“. Sprache liegt dort nur 2,3-mal (+7 dB) über dem leisesten Abschnitt, Raumrauschen unter WSL ohne Sprache kommt auf das 2,1-fache. Ein Faktor trennt beides nicht. Unter Windows greift deshalb der Zuschnitt auf den Sprachteil nicht (es gibt den Rückfall auf die ganze Aufnahme), und der Auto-Stopp kommt vermutlich erst 15 s nach dem Start statt 4 s nach dem letzten Wort. Die Bestätigung des Nutzers dazu steht aus. Details in TASK-18.
 - **Mac:** `Mundwerk.app` erscheint seit `v0.4.0` mit jedem Release, ist aber noch auf keinem echten Mac gelaufen. Der Nutzer hat die App an Kollegen gegeben.
-- **Backlog:** Offen sind TASK-5, 9, 10 und 11. Was jeweils fehlt, steht in den Notizen (`backlog task view TASK-n --plain`).
+- **Backlog:** Offen sind TASK-5, 9, 10 und 11 (in Arbeit) sowie TASK-19 (noch nicht begonnen). Was jeweils fehlt, steht in den Notizen (`backlog task view TASK-n --plain`).
 
 ## Nächste Schritte
 
