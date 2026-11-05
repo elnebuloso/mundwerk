@@ -279,14 +279,19 @@ fn download(name: &str, path: &Path, cancel: &AtomicBool, send: &impl Fn(Msg)) -
         return Err("Download unvollständig".into());
     }
     let actual: String = hasher.finalize().iter().map(|b| format!("{b:02x}")).collect();
-    if actual != expected {
-        let _ = std::fs::remove_file(&part);
-        return Err(format!("Prüfsumme falsch, Datei verworfen: erwartet {expected}, erhalten {actual}"));
-    }
+    keep_if_checksum_matches(&part, path, &expected, &actual)?;
     send(Msg::Log(format!("Prüfsumme SHA-256 stimmt: {actual}")));
-    std::fs::rename(&part, path).map_err(|e| e.to_string())?;
     send(Msg::Log(format!("Gespeichert: {}", path.display())));
     Ok(())
+}
+
+/// Moves the downloaded `part` to `path` if its checksum is the published one, otherwise deletes it.
+fn keep_if_checksum_matches(part: &Path, path: &Path, expected: &str, actual: &str) -> Result<(), String> {
+    if actual != expected {
+        let _ = std::fs::remove_file(part);
+        return Err(format!("Prüfsumme falsch, Datei verworfen: erwartet {expected}, erhalten {actual}"));
+    }
+    std::fs::rename(part, path).map_err(|e| e.to_string())
 }
 
 fn transcribe(ctx: &WhisperContext, audio: &[f32], lang: &str) -> Result<String, String> {
@@ -1049,6 +1054,23 @@ fn main() -> eframe::Result {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn wrong_checksum_discards_the_download() {
+        let dir = std::env::temp_dir().join(format!("mundwerk-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let (part, path) = (dir.join("model.part"), dir.join("model.bin"));
+
+        std::fs::write(&part, "x").unwrap();
+        let err = keep_if_checksum_matches(&part, &path, "aaa", "bbb").unwrap_err();
+        assert!(err.contains("Prüfsumme falsch") && err.contains("aaa") && err.contains("bbb"), "{err}");
+        assert!(!part.exists() && !path.exists());
+
+        std::fs::write(&part, "x").unwrap();
+        keep_if_checksum_matches(&part, &path, "aaa", "aaa").unwrap();
+        assert!(!part.exists() && path.exists());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 
     #[test]
     fn resample_48k_to_16k() {
