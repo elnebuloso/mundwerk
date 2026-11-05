@@ -9,8 +9,20 @@ output=$3
 
 work=$(mktemp -d)
 app="$work/Mundwerk.app"
-mkdir -p "$app/Contents/MacOS"
+mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$binary" "$app/Contents/MacOS/mundwerk"
+
+# Dock and Finder take the icon from the bundle; the 512 px logo is the largest size, so no 1024 px variant.
+iconset="$work/Mundwerk.iconset"
+mkdir "$iconset"
+logo="$(dirname "$0")/../logo.png"
+for size in 16 32 128 256 512; do
+  sips -z $size $size "$logo" --out "$iconset/icon_${size}x${size}.png" >/dev/null
+done
+for size in 16 32 128 256; do
+  sips -z $((size * 2)) $((size * 2)) "$logo" --out "$iconset/icon_${size}x${size}@2x.png" >/dev/null
+done
+iconutil -c icns "$iconset" -o "$app/Contents/Resources/Mundwerk.icns"
 
 # Without NSMicrophoneUsageDescription macOS refuses the app access to the microphone.
 cat > "$app/Contents/Info.plist" <<PLIST
@@ -22,6 +34,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
 	<key>CFBundleDisplayName</key><string>Mundwerk</string>
 	<key>CFBundleIdentifier</key><string>io.github.elnebuloso.mundwerk</string>
 	<key>CFBundleExecutable</key><string>mundwerk</string>
+	<key>CFBundleIconFile</key><string>Mundwerk</string>
 	<key>CFBundlePackageType</key><string>APPL</string>
 	<key>CFBundleShortVersionString</key><string>$version</string>
 	<key>CFBundleVersion</key><string>$version</string>

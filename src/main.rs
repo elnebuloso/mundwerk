@@ -31,6 +31,8 @@ const MIC_HINT: &str = if cfg!(target_os = "macos") {
 const RECORD_KEY_LABEL: &str = if cfg!(target_os = "macos") { "⌘R" } else { "Strg+R" };
 const COPY_KEY_LABEL: &str = if cfg!(target_os = "macos") { "⌘⇧C" } else { "Strg+Shift+C" };
 const GLOBAL_KEY_LABEL: &str = if cfg!(target_os = "macos") { "⌃⌥Leertaste" } else { "Strg+Alt+Leertaste" };
+// macOS ignores it; there the app bundle carries the icon
+const LOGO: &[u8] = include_bytes!("../logo.png");
 const GPU_API: &str = if cfg!(feature = "metal") { "Metal" } else { "Vulkan" };
 // below about -40 dBFS throughout: nothing but noise floor, and Whisper would invent text for it
 const SILENCE: f32 = 0.01;
@@ -1128,7 +1130,8 @@ fn main() -> eframe::Result {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([880.0, 680.0])
             .with_min_inner_size([720.0, 600.0])
-            .with_title("Mundwerk"),
+            .with_title("Mundwerk")
+            .with_icon(eframe::icon_data::from_png_bytes(LOGO).expect("logo.png is a valid PNG")),
         ..Default::default()
     };
     eframe::run_native(
@@ -1154,6 +1157,12 @@ fn main() -> eframe::Result {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn logo_decodes_as_window_icon() {
+        let icon = eframe::icon_data::from_png_bytes(LOGO).unwrap();
+        assert_eq!((icon.width, icon.height), (512, 512));
+    }
 
     #[test]
     fn wrong_checksum_discards_the_download() {
