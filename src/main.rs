@@ -50,6 +50,88 @@ enum Msg {
     Hotkey,
 }
 
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum Cue {
+    Start,
+    Stop,
+    Copied,
+}
+
+/// Soft sine notes for a cue: start rises, stop falls, copied is two short equal notes.
+fn cue_samples(cue: Cue, rate: u32) -> Vec<f32> {
+    // about -26 dBFS: audible next to other sounds, never loud
+    const VOLUME: f32 = 0.05;
+    let notes: &[(f32, f32)] = match cue {
+        Cue::Start => &[(660.0, 0.09), (880.0, 0.12)],
+        Cue::Stop => &[(880.0, 0.09), (660.0, 0.12)],
+        Cue::Copied => &[(1175.0, 0.06), (1175.0, 0.06)],
+    };
+    let rate_f = rate as f32;
+    let gap = vec![0.0; (rate_f * 0.04) as usize];
+    let mut out = Vec::new();
+    for (i, &(freq, secs)) in notes.iter().enumerate() {
+        if i > 0 {
+            out.extend(&gap);
+        }
+        let n = (rate_f * secs) as usize;
+        // 10 ms fade in and out, so the note neither clicks on nor off
+        let fade = (rate_f * 0.01) as usize;
+        out.extend((0..n).map(|k| {
+            let envelope = (k.min(n - 1 - k) as f32 / fade as f32).min(1.0);
+            VOLUME * envelope * (std::f32::consts::TAU * freq * k as f32 / rate_f).sin()
+        }));
+    }
+    out
+}
+
+fn build_output<T: SizedSample + FromSample<f32>>(
+    dev: &cpal::Device,
+    cfg: &cpal::StreamConfig,
+    samples: Vec<f32>,
+) -> Result<cpal::Stream, cpal::Error> {
+    let ch = cfg.channels as usize;
+    let mut next = samples.into_iter();
+    dev.build_output_stream(
+        *cfg,
+        move |data: &mut [T], _: &_| {
+            for frame in data.chunks_mut(ch) {
+                let v = T::from_sample(next.next().unwrap_or(0.0));
+                frame.fill(v);
+            }
+        },
+        |e| eprintln!("audio output error: {e}"),
+        None,
+    )
+}
+
+/// Plays a cue on the default output device without blocking the UI.
+fn play_cue(cue: Cue, tx: Sender<Msg>) {
+    std::thread::spawn(move || {
+        let result = (|| -> Result<(), String> {
+            let dev = cpal::default_host().default_output_device().ok_or("kein Ausgabegerät")?;
+            let sup = dev.default_output_config().map_err(|e| e.to_string())?;
+            let cfg: cpal::StreamConfig = sup.config();
+            let samples = cue_samples(cue, cfg.sample_rate);
+            let secs = samples.len() as f32 / cfg.sample_rate as f32;
+            let stream = match sup.sample_format() {
+                cpal::SampleFormat::F32 => build_output::<f32>(&dev, &cfg, samples),
+                cpal::SampleFormat::I16 => build_output::<i16>(&dev, &cfg, samples),
+                cpal::SampleFormat::I32 => build_output::<i32>(&dev, &cfg, samples),
+                cpal::SampleFormat::U16 => build_output::<u16>(&dev, &cfg, samples),
+                f => return Err(format!("Audioformat {f} wird nicht unterstützt")),
+            }
+            .map_err(|e| e.to_string())?;
+            stream.play().map_err(|e| e.to_string())?;
+            // the stream stops when dropped; leave room for the device's buffer to drain
+            std::thread::sleep(Duration::from_secs_f32(secs + 0.15));
+            Ok(())
+        })();
+        if let Err(e) = result {
+            let _ = tx.send(Msg::Log(format!("Ton konnte nicht abgespielt werden: {e}")));
+        }
+    });
+}
+
 struct Recording {
     _stream: cpal::Stream,
     samples: Arc<Mutex<Vec<f32>>>,
@@ -81,6 +163,8 @@ struct App {
     recording_title: bool,
     device: String,
     auto_copy: bool,
+    /// The running transcription was stopped outside the window, so the copy is announced by a cue.
+    cue_on_copy: bool,
     /// Keeps the global shortcut registered; None where the system refused it.
     hotkeys: Option<global_hotkey::GlobalHotKeyManager>,
     tx: Sender<Msg>,
@@ -442,6 +526,7 @@ impl App {
             recording_title: false,
             device: compute_device(),
             auto_copy: load_auto_copy(),
+            cue_on_copy: false,
             hotkeys: None,
             tx,
             rx,
@@ -526,14 +611,18 @@ impl App {
         } else {
             format!("Aufnahme nach {STOP_WITHOUT_SPEECH_SECS} s ohne erkannte Sprache automatisch beendet")
         });
-        self.toggle(ui_ctx);
+        self.toggle(ui_ctx, true);
     }
 
-    fn toggle(&mut self, ui_ctx: &egui::Context) {
+    /// `audible`: started or stopped outside the window (global shortcut, silence), where only a cue tells the user.
+    fn toggle(&mut self, ui_ctx: &egui::Context, audible: bool) {
         self.error = None;
         match self.rec.take() {
             None => match start_recording() {
                 Ok(r) => {
+                    if audible {
+                        play_cue(Cue::Start, self.tx.clone());
+                    }
                     self.log(format!("Aufnahme über Mikrofon: {}", r.device));
                     self.rec = Some(r);
                     self.status = "Aufnahme läuft …".into();
@@ -542,6 +631,10 @@ impl App {
             },
             Some(r) => {
                 drop(r._stream);
+                if audible {
+                    play_cue(Cue::Stop, self.tx.clone());
+                }
+                self.cue_on_copy = audible;
                 let audio = resample(&r.samples.lock().unwrap(), r.rate);
                 self.status.clear();
                 if is_silent(&audio) {
@@ -593,6 +686,9 @@ impl App {
                     if self.auto_copy {
                         self.copy(ui_ctx);
                         self.status.push_str(", kopiert");
+                        if self.cue_on_copy {
+                            play_cue(Cue::Copied, self.tx.clone());
+                        }
                     }
                 }
             }
@@ -604,7 +700,7 @@ impl App {
             }
             Msg::Hotkey => {
                 if self.can_record() {
-                    self.toggle(ui_ctx);
+                    self.toggle(ui_ctx, true);
                 }
             }
         }
@@ -692,7 +788,7 @@ impl App {
                     egui::Button::new(text)
                 };
                 if ui.add_enabled(can_record, button.min_size(egui::vec2(280.0, 48.0)).corner_radius(8.0)).clicked() {
-                    self.toggle(ui_ctx);
+                    self.toggle(ui_ctx, false);
                 }
                 if let Some(r) = &self.rec {
                     let samples = r.samples.lock().unwrap();
@@ -791,7 +887,7 @@ impl eframe::App for App {
         let record_key = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::R);
         let copy_key = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND | egui::Modifiers::SHIFT, egui::Key::C);
         if ui_ctx.input_mut(|i| i.consume_shortcut(&record_key)) && self.can_record() {
-            self.toggle(ui_ctx);
+            self.toggle(ui_ctx, false);
         }
         if ui_ctx.input_mut(|i| i.consume_shortcut(&copy_key)) && !self.text.is_empty() {
             self.copy(ui_ctx);
@@ -946,6 +1042,32 @@ mod tests {
         let (left, heard) = secs_until_auto_stop(&a, 1000);
         assert!(heard);
         assert!((left - 3.8).abs() < 1e-4, "{left}");
+    }
+
+    /// Dominant frequency of a stretch of a sine, from its zero crossings.
+    fn pitch(samples: &[f32], rate: u32) -> f32 {
+        let crossings = samples.windows(2).filter(|w| w[0] < 0.0 && w[1] >= 0.0).count();
+        crossings as f32 * rate as f32 / samples.len() as f32
+    }
+
+    #[test]
+    fn cues_are_quiet_and_click_free() {
+        for cue in [Cue::Start, Cue::Stop, Cue::Copied] {
+            let s = cue_samples(cue, 48000);
+            assert!(s.iter().all(|v| v.abs() <= 0.05), "{cue:?} too loud");
+            assert!(s[0].abs() < 1e-3 && s[s.len() - 1].abs() < 1e-2, "{cue:?} clicks");
+            assert!(s.len() < 48000 / 2, "{cue:?} too long");
+        }
+    }
+
+    #[test]
+    fn start_cue_rises_and_stop_cue_falls() {
+        let rate = 48000;
+        let note = (rate as f32 * 0.08) as usize;
+        let start = cue_samples(Cue::Start, rate);
+        let stop = cue_samples(Cue::Stop, rate);
+        assert!(pitch(&start[..note], rate) < pitch(&start[start.len() - note..], rate));
+        assert!(pitch(&stop[..note], rate) > pitch(&stop[stop.len() - note..], rate));
     }
 
     #[test]

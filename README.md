@@ -96,6 +96,16 @@ Mit **„Automatisch kopieren“** (Haken unter dem Textfeld, von Anfang an gese
 3. `Strg+Alt+Leertaste` noch einmal drücken oder einfach still sein – nach 4 Sekunden stoppt die Aufnahme von selbst.
 4. Sobald der Text erkannt ist, mit `Strg+V` einfügen.
 
+Weil Mundwerk dabei meist verdeckt ist, meldet es sich mit leisen, kurzen Tönen:
+
+| Ton | Wann |
+|---|---|
+| zwei Töne aufsteigend | Aufnahme per Tastenkürzel gestartet |
+| zwei Töne absteigend | Aufnahme per Tastenkürzel oder wegen Stille gestoppt |
+| zwei kurze gleiche, hohe Töne | Text erkannt und in der Zwischenablage – jetzt `Strg+V` (nur mit gesetztem Haken) |
+
+Was du im Mundwerk-Fenster selbst startest und stoppst (Button, `Strg+R`), bleibt stumm – das siehst du ja.
+
 Der Haken überschreibt, was vorher in der Zwischenablage lag. Ohne Haken kopierst du wie bisher selbst. Die Wahl gilt auch beim nächsten Start.
 
 Das Kürzel wirkt unter Windows, auf dem Mac und unter Linux mit X11. Unter Linux mit Wayland lässt das System kein Kürzel zu, das aus anderen Fenstern heraus wirkt, und unter WSL erreicht es keine Windows-Programme – dort gilt nur `Strg+R` im Mundwerk-Fenster. Ist das Kürzel schon von einem anderen Programm belegt (oder läuft Mundwerk zweimal), steht das im Protokoll, und der Aufnahme-Button nennt `Strg+R` statt `Strg+Alt+Leertaste`.
