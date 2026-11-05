@@ -20,3 +20,6 @@ default = ["vulkan"]
 vulkan = ["whisper-rs/vulkan"]
 # macOS has no Vulkan driver; the Mac build uses --no-default-features --features metal
 metal = ["whisper-rs/metal"]
+
+[build-dependencies]
+winresource = "0.1.34"
