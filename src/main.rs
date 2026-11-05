@@ -38,6 +38,8 @@ const STOP_AFTER_SPEECH_SECS: f32 = 4.0;
 const STOP_WITHOUT_SPEECH_SECS: f32 = 15.0;
 // +12 dB over the quietest moment of the recording counts as speech, so steady room noise doesn't
 const SPEECH_OVER_FLOOR: f32 = 4.0;
+// RMS per 100 ms, -54 dBFS: quiet microphones put speech well below the peak-based SILENCE
+const SPEECH_MIN_RMS: f32 = 0.002;
 
 enum Msg {
     /// Some((done, total)) while downloading, None while loading into memory.
@@ -343,13 +345,31 @@ fn level(samples: &[f32]) -> f32 {
     ((20.0 * rms(samples).max(1e-6).log10() + 60.0) / 60.0).clamp(0.0, 1.0)
 }
 
+fn window_levels(samples: &[f32], rate: u32) -> Vec<f32> {
+    samples.chunks_exact((rate.max(10) / 10) as usize).map(rms).collect()
+}
+
+/// The quietest window that isn't digital zero, and the level above which a window counts as speech.
+fn speech_threshold(levels: &[f32]) -> (f32, f32) {
+    // below 1e-4 is digital zero (stream start, muted device), not the room's noise floor
+    let floor = levels.iter().copied().filter(|&r| r > 1e-4).fold(f32::INFINITY, f32::min);
+    let floor = if floor.is_finite() { floor } else { 0.0 };
+    (floor, (floor * SPEECH_OVER_FLOOR).max(SPEECH_MIN_RMS))
+}
+
 /// For each 100 ms window of the samples, whether it holds speech.
 fn speech_windows(samples: &[f32], rate: u32) -> Vec<bool> {
-    let windows: Vec<f32> = samples.chunks_exact((rate.max(10) / 10) as usize).map(rms).collect();
-    // below 1e-4 is digital zero (stream start, muted device), not the room's noise floor
-    let floor = windows.iter().copied().filter(|&r| r > 1e-4).fold(f32::INFINITY, f32::min);
-    let threshold = if floor.is_finite() { (floor * SPEECH_OVER_FLOOR).max(SILENCE) } else { SILENCE };
-    windows.iter().map(|&r| r > threshold).collect()
+    let levels = window_levels(samples, rate);
+    let (_, threshold) = speech_threshold(&levels);
+    levels.iter().map(|&r| r > threshold).collect()
+}
+
+/// One log line with the levels the speech detection decided on, to tune it on other microphones.
+fn level_report(samples: &[f32], rate: u32) -> String {
+    let levels = window_levels(samples, rate);
+    let (floor, threshold) = speech_threshold(&levels);
+    let loudest = levels.iter().copied().fold(0.0, f32::max);
+    format!("Pegel (RMS je 100 ms): leisester {floor:.4}, lautester {loudest:.4}, Sprache ab {threshold:.4}")
 }
 
 /// Seconds left until the recording should stop for lack of speech, and whether speech was heard.
@@ -677,12 +697,16 @@ impl App {
                     self.fail(format!("Kein Ton aufgenommen. {MIC_HINT}"));
                     return;
                 }
-                let Some(speech) = speech_span(&audio, 16000) else {
-                    self.log("Keine Sprache erkannt, nichts an die Texterkennung gegeben".into());
-                    self.status = "Keine Sprache erkannt – nichts eingefügt".into();
-                    return;
+                self.log(level_report(&audio, 16000));
+                // Without detected speech the whole recording still goes to Whisper: a microphone the
+                // detection misjudges must not cost a dictation, an invented "Vielen Dank." is cheaper.
+                let audio = match speech_span(&audio, 16000) {
+                    Some(speech) => speech.to_vec(),
+                    None => {
+                        self.log("Keine Sprache erkannt, die ganze Aufnahme geht an die Texterkennung".into());
+                        audio
+                    }
                 };
-                let audio = speech.to_vec();
                 let (ctx, tx, ui, lang) = (self.ctx.clone().unwrap(), self.tx.clone(), ui_ctx.clone(), LANGS[self.lang].0);
                 self.audio_secs = audio.len() as f32 / 16000.0;
                 self.transcribing_since = Some(Instant::now());
@@ -1127,6 +1151,16 @@ mod tests {
         let span = speech_span(&a, 1000).unwrap();
         assert_eq!(span.len(), 300 + 500 + 500);
         assert_eq!(span.as_ptr(), a[700..].as_ptr());
+    }
+
+    #[test]
+    fn quiet_microphone_speech_counts() {
+        // speech at RMS 0.006 (-44 dBFS) over a noise floor of 0.0005: below the old 0.01 limit
+        let mut a = audio(&[0.0005; 10]);
+        a.extend(audio(&[0.006; 10]));
+        a.extend(audio(&[0.0005; 10]));
+        assert_eq!(speech_span(&a, 1000).unwrap().len(), 300 + 1000 + 500);
+        assert!(secs_until_auto_stop(&a, 1000).1);
     }
 
     #[test]
