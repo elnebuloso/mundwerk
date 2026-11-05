@@ -4,6 +4,7 @@ title: Spracherkennung per Silero-VAD statt Pegelmessung
 status: To Do
 assignee: []
 created_date: '2026-11-05 17:41'
+updated_date: '2026-11-05 18:53'
 labels: []
 dependencies: []
 references:
@@ -28,3 +29,9 @@ Auto-Stopp (4 s nach dem letzten Wort) und der Zuschnitt auf den gesprochenen Te
 - [ ] #5 Geprüft mit den Aufnahmen aus TASK-12/17 (Sprachausgabe, Raum- und Lüfterrauschen) und vom Nutzer unter Windows: Auto-Stopp 4 s nach dem letzten Wort
 - [ ] #6 README beschreibt die Spracherkennung und das zweite Modell
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Vom Nutzer unter Windows mit `v0.9.1` bestätigt: Der Auto-Stopp kommt erst 15 s nach dem Start, nicht 4 s nach dem letzten Wort. Die Pegelmethode erkennt auf diesem Mikrofon also keine Sprache, die Diagnose aus TASK-18 stimmt.
+<!-- SECTION:NOTES:END -->
