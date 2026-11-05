@@ -622,6 +622,24 @@ fn save_model_choice(name: &str) {
     let _ = std::fs::write(model_choice_path(), name);
 }
 
+fn language_path() -> PathBuf {
+    app_dir().join("language")
+}
+
+/// Index in `LANGS` of the saved language code; German when nothing or an unknown code is saved.
+fn lang_index(saved: &str) -> usize {
+    LANGS.iter().position(|(code, _)| *code == saved.trim()).unwrap_or(0)
+}
+
+fn load_language() -> usize {
+    lang_index(&std::fs::read_to_string(language_path()).unwrap_or_default())
+}
+
+fn save_language(code: &str) {
+    // losing the choice only means German at the next start
+    let _ = std::fs::write(language_path(), code);
+}
+
 /// Registers the shortcut that toggles recording from any window; the manager must live on the
 /// thread running the event loop (Windows, macOS).
 fn register_hotkey(tx: Sender<Msg>, ui_ctx: egui::Context) -> Result<global_hotkey::GlobalHotKeyManager, String> {
@@ -648,7 +666,7 @@ impl App {
         let (tx, rx) = channel();
         let mut app = App {
             model: load_model_choice(),
-            lang: 0,
+            lang: load_language(),
             ctx: None,
             vad: None,
             loaded: String::new(),
@@ -991,7 +1009,9 @@ impl App {
                 ui.add_enabled_ui(!self.loading && self.rec.is_none() && self.transcribing_since.is_none(), |ui| {
                     egui::ComboBox::from_id_salt("lang").selected_text(LANGS[self.lang].1).show_ui(ui, |ui| {
                         for (i, (_, label)) in LANGS.iter().enumerate() {
-                            ui.selectable_value(&mut self.lang, i, *label);
+                            if ui.selectable_value(&mut self.lang, i, *label).changed() {
+                                save_language(LANGS[i].0);
+                            }
                         }
                     });
                     ui.label("Sprache");
@@ -1183,6 +1203,14 @@ mod tests {
         assert_eq!(model_index("large-v3-turbo"), 1);
         assert_eq!(model_index(""), 0);
         assert_eq!(model_index("tiny"), 0);
+    }
+
+    #[test]
+    fn saved_language_code_selects_its_index() {
+        assert_eq!(lang_index("auto\n"), 2);
+        assert_eq!(lang_index("en"), 1);
+        assert_eq!(lang_index(""), 0);
+        assert_eq!(lang_index("fr"), 0);
     }
 
     #[test]
