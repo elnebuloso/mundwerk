@@ -417,17 +417,22 @@ fn speech_windows(samples: &[f32], rate: u32) -> Vec<bool> {
 
 /// Extends `speech` by the VAD's verdict on the frames of the recording it doesn't cover yet: every
 /// `VAD_STEP_FRAMES` while recording, every last frame with `finish`.
-fn detect_speech(vad: &mut WhisperVadContext, samples: &[f32], rate: u32, speech: &mut Vec<bool>, finish: bool) -> Result<(), String> {
-    let ratio = rate.max(1) as f64 / 16000.0;
-    let resampled = (samples.len() as f64 / ratio) as usize;
-    let frames = if finish { resampled.div_ceil(VAD_FRAME) } else { resampled / VAD_FRAME };
-    if frames < speech.len() + if finish { 1 } else { VAD_STEP_FRAMES } {
-        return Ok(());
-    }
-    let from = speech.len().saturating_sub(VAD_CONTEXT_FRAMES);
-    let start = (from as f64 * VAD_FRAME as f64 * ratio) as usize;
-    let end = ((frames * VAD_FRAME) as f64 * ratio).ceil() as usize;
-    let audio = resample(&samples[start..end.min(samples.len())], rate);
+fn detect_speech(vad: &mut WhisperVadContext, samples: &Mutex<Vec<f32>>, rate: u32, speech: &mut Vec<bool>, finish: bool) -> Result<(), String> {
+    // copy out and release the lock before the VAD runs: the audio callback waits on it and the device drops what it can't deliver
+    let (frames, from, chunk) = {
+        let samples = samples.lock().unwrap();
+        let ratio = rate.max(1) as f64 / 16000.0;
+        let resampled = (samples.len() as f64 / ratio) as usize;
+        let frames = if finish { resampled.div_ceil(VAD_FRAME) } else { resampled / VAD_FRAME };
+        if frames < speech.len() + if finish { 1 } else { VAD_STEP_FRAMES } {
+            return Ok(());
+        }
+        let from = speech.len().saturating_sub(VAD_CONTEXT_FRAMES);
+        let start = (from as f64 * VAD_FRAME as f64 * ratio) as usize;
+        let end = ((frames * VAD_FRAME) as f64 * ratio).ceil() as usize;
+        (frames, from, samples[start..end.min(samples.len())].to_vec())
+    };
+    let audio = resample(&chunk, rate);
     vad.detect_speech(&audio).map_err(|e| format!("VAD fehlgeschlagen: {e}"))?;
     let new = vad.probabilities().iter().skip(speech.len() - from).take(frames - speech.len());
     speech.extend(new.map(|&p| p > VAD_THRESHOLD));
@@ -760,7 +765,7 @@ impl App {
     /// Brings the recording's VAD verdicts up to date; on failure falls back to the level for good.
     fn update_speech(&mut self, finish: bool) {
         let (Some(vad), Some(r)) = (&mut self.vad, &mut self.rec) else { return };
-        let result = detect_speech(vad, &r.samples.lock().unwrap(), r.rate, &mut r.speech, finish);
+        let result = detect_speech(vad, &r.samples, r.rate, &mut r.speech, finish);
         if let Err(e) = result {
             self.vad = None;
             self.log(format!("{e}, Mundwerk erkennt Sprache ab jetzt am Pegel"));
