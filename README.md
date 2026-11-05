@@ -161,6 +161,7 @@ Alles liegt in einem Ordner: `%USERPROFILE%\.mundwerk\` unter Windows, `~/.mundw
 - `mundwerk.log` – das Protokoll, dieselben Zeilen wie unter „Protokoll“ im Fenster, mit Sekunden seit dem Programmstart
 - `theme` – `light`, wenn du auf hell umgeschaltet hast
 - `model` – das zuletzt geladene Modell; Mundwerk wählt es beim nächsten Start wieder
+- `auto-copy` – `off`, wenn du „Automatisch kopieren“ abgeschaltet hast
 
 Zum Deinstallieren die Programmdatei und diesen Ordner löschen.
 
