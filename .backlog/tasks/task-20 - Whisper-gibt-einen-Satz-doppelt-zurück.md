@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@claude'
 created_date: '2026-11-05 19:13'
-updated_date: '2026-11-05 19:20'
+updated_date: '2026-11-05 19:38'
 labels: []
 dependencies: []
 priority: high
@@ -46,6 +46,8 @@ Reproduziert (Probe-Test, danach entfernt; i5-3570K, CPU, `large-v3-turbo-q5_0`,
 Ursache ist das zu knappe Audio-Fenster. Nur eine Aufnahme gemessen, eine sichere Grenze lässt sich daraus nicht ableiten. GPU-Zeiten mit vollem Fenster nicht gemessen. Entscheidung beim Nutzer: volles Fenster oder großzügigere Formel.
 
 Nutzer hat das volle Fenster gewählt. `set_audio_ctx` entfernt, ein Kommentar an der Stelle hält fest, warum. Live unter WSL über `RDPSink.monitor`: „Text erkannt: 9,0 s Audio in 92,4 s“, Satz genau einmal. Davor in der App 74,6 s mit doppeltem Satz. Kein Regressionstest: Er bräuchte das 0,5-GB-Modell, das in CI nicht liegt, und Minuten an CPU-Zeit.
+
+GPU-Zeit mit vollem Fenster, vom Nutzer unter Windows mit `v0.10.0` gemessen (GTX 1070): 2,5 s Audio in 1,7 s. Vorher mit verkleinertem Fenster: 3,6 s Audio in 0,6 s (`v0.9.1`).
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary

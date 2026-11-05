@@ -1,11 +1,11 @@
 ---
 id: TASK-19
 title: Spracherkennung per Silero-VAD statt Pegelmessung
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-11-05 17:41'
-updated_date: '2026-11-05 19:12'
+updated_date: '2026-11-05 19:38'
 labels: []
 dependencies: []
 references:
@@ -27,7 +27,7 @@ Auto-Stopp (4 s nach dem letzten Wort) und der Zuschnitt auf den gesprochenen Te
 - [x] #2 Der Auto-Stopp entscheidet per VAD: 4 s nach der letzten erkannten Sprache, 15 s ohne Sprache
 - [x] #3 An Whisper geht nur der per VAD erkannte gesprochene Teil; ohne erkannte Sprache weiterhin die ganze Aufnahme
 - [x] #4 Fehlt das VAD-Modell oder schlägt es fehl, arbeitet Mundwerk mit der bisherigen Pegelmethode weiter und protokolliert das
-- [ ] #5 Geprüft mit den Aufnahmen aus TASK-12/17 (Sprachausgabe, Raum- und Lüfterrauschen) und vom Nutzer unter Windows: Auto-Stopp 4 s nach dem letzten Wort
+- [x] #5 Geprüft mit den Aufnahmen aus TASK-12/17 (Sprachausgabe, Raum- und Lüfterrauschen) und vom Nutzer unter Windows: Auto-Stopp 4 s nach dem letzten Wort
 - [x] #6 README beschreibt die Spracherkennung und das zweite Modell
 <!-- AC:END -->
 
@@ -56,4 +56,12 @@ Umgesetzt wie geplant. Messungen auf dem i5-3570K (Probe-Test, danach entfernt) 
 - `n_threads` muss 1 sein: 2 s Audio in 23 ms mit 1 Thread, 75 ms mit 2, 3,9 s mit 4. Mit 1 Thread höchstens 13 ms je Schritt im UI-Thread.
 Live unter WSL: VAD-Modell geladen, Prüfsumme stimmt. Mit `pactl set-default-source RDPSink.monitor` (das WSL-Mikrofon hört den Lautsprecher nicht) Auto-Stopp 4,1 s nach Ende der Sprachausgabe, „Sprache laut VAD: 6,8 s von 13,6 s“, 9,1 s an Whisper. Ohne Sprache: Stopp nach 15 s, ganze Aufnahme an Whisper. Kaputte VAD-Datei: „Spracherkennung per VAD nicht verfügbar, Mundwerk erkennt Sprache am Pegel: …“, Mundwerk wird trotzdem bereit. Nebenbei: Downloads unter 10 MB schreiben keine Prozentzeilen mehr ins Protokoll.
 Beobachtet, nicht Teil dieses Tasks: Whisper gab den 9,1-s-Ausschnitt mit dem Satz doppelt zurück, obwohl er in der Aufnahme nur einmal vorkommt. Offen bleibt AC #5: die Bestätigung des Nutzers unter Windows.
+
+Vom Nutzer unter Windows mit `v0.10.0` bestätigt (GTX 1070): „Aufnahme nach 4 s Stille automatisch beendet“, „Sprache laut VAD: 1,7 s von 6,5 s“, „Text erkannt: 2,5 s Audio in 1,7 s“.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Ob gesprochen wird, entscheidet jetzt Silero-VAD (`ggml-silero-v5.1.2.bin`, 0,9 MB) statt der Pegelmessung, für den Auto-Stopp und für den Zuschnitt der Aufnahme. Das Modell wird mit Prüfsumme nach `~/.mundwerk/models/` geladen, die Zeile „Sprachfilter“ zeigt Ziel und Quelle. Fehlt es oder scheitert es, nutzt Mundwerk die Pegelmethode und protokolliert das. Das VAD läuft schrittweise alle 0,5 s im UI-Thread mit einem Thread (höchstens 13 ms auf dem i5-3570K, mit 4 Threads wäre es über 150-mal langsamer). Geprüft mit Testaufnahmen, live unter WSL und vom Nutzer unter Windows: Der Auto-Stopp kommt 4 s nach dem letzten Wort, auch auf seinem leisen Mikrofon. Ausgeliefert in `v0.10.0`.
+<!-- SECTION:FINAL_SUMMARY:END -->
