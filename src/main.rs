@@ -900,12 +900,15 @@ impl App {
         });
         ui.add_space(8.0);
         let name = self.selected();
-        egui::Grid::new("model_info").num_columns(2).spacing([12.0, 4.0]).min_row_height(18.0).show(ui, |ui| {
-            let vad = format!("{} – {VAD_URL}", vad_path().display());
-            for (label, value) in [("Quelle", model_url(name)), ("Ziel", model_path(name).display().to_string()), ("Sprachfilter", vad)] {
-                ui.label(egui::RichText::new(label).weak());
-                ui.add(egui::Label::new(egui::RichText::new(&value).monospace()).truncate()).on_hover_text(&value);
-                ui.end_row();
+        let files = [("Modell", model_path(name), model_url(name)), ("Sprachfilter", vad_path(), VAD_URL.to_string())];
+        egui::Grid::new("model_info").num_columns(3).spacing([12.0, 4.0]).min_row_height(18.0).show(ui, |ui| {
+            for (file, path, url) in files {
+                for (label, kind, value) in [(file, "Lokal", path.display().to_string()), ("", "Web", url)] {
+                    ui.label(egui::RichText::new(label).weak());
+                    ui.label(egui::RichText::new(kind).weak());
+                    ui.add(egui::Label::new(egui::RichText::new(&value).monospace()).truncate()).on_hover_text(&value);
+                    ui.end_row();
+                }
             }
         });
     }

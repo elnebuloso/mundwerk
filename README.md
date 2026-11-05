@@ -138,9 +138,9 @@ Das Kürzel wirkt unter Windows, auf dem Mac und unter Linux mit X11. Unter Linu
 | `large-v3-turbo` | 1,6 GB | Genauer, langsamer, braucht mehr Speicher |
 | `base` | 0,15 GB | Am schnellsten, ungenauer |
 
-In der Auswahl steht ● „vorhanden“ für heruntergeladene Modelle und ○ „noch nicht heruntergeladen“ für die übrigen. Ein vorhandenes Modell wird beim Auswählen sofort geladen. Unter der Auswahl stehen die Download-Adresse und der Speicherort des gewählten Modells.
+In der Auswahl steht ● „vorhanden“ für heruntergeladene Modelle und ○ „noch nicht heruntergeladen“ für die übrigen. Ein vorhandenes Modell wird beim Auswählen sofort geladen. Unter der Auswahl stehen für das gewählte Modell und für den Sprachfilter jeweils der Speicherort auf deinem Rechner („Lokal“) und die Download-Adresse („Web“).
 
-Geladen wird von `https://huggingface.co/ggerganov/whisper.cpp`. Dazu kommt einmalig der Sprachfilter `ggml-silero-v5.1.2.bin` (0,9 MB) von `https://huggingface.co/ggml-org/whisper-vad`. Er erkennt, wann gesprochen wird, für den Auto-Stopp und den Zuschnitt der Aufnahme. Speicherort und Quelle stehen in der Zeile „Sprachfilter“ unter der Modellauswahl.
+Geladen wird von `https://huggingface.co/ggerganov/whisper.cpp`. Dazu kommt einmalig der Sprachfilter `ggml-silero-v5.1.2.bin` (0,9 MB) von `https://huggingface.co/ggml-org/whisper-vad`. Er erkennt, wann gesprochen wird, für den Auto-Stopp und den Zuschnitt der Aufnahme.
 
 Nach jedem Download vergleicht Mundwerk die SHA-256-Prüfsumme mit der, die Hugging Face veröffentlicht, und verwirft die Datei, wenn sie nicht stimmt.
 
