@@ -104,7 +104,7 @@ Das Kürzel wirkt unter Windows, auf dem Mac und unter Linux mit X11. Unter Linu
 - Neuer Text wird an der Cursorposition eingefügt. Ohne gesetzten Cursor kommt er ans Ende.
 - „Leeren“ löscht den ganzen Text. „Rückgängig“ holt ihn zurück, aber nur bis zum nächsten Diktat oder zur nächsten Änderung im Textfeld.
 - Die Sprache stellst du rechts neben dem Aufnahme-Button ein: „Deutsch“, „Englisch“ oder „Automatisch“.
-- Mundwerk startet dunkel, unabhängig von der Systemeinstellung. Rechts in der Fußzeile schaltest du mit ☀ auf hell und mit 🌙 zurück auf dunkel; die Wahl gilt auch beim nächsten Start.
+- Mundwerk startet dunkel, unabhängig von der Systemeinstellung. Rechts in der Fußzeile schaltest du mit ☀ auf hell und mit 🌙 (ganz rechts) zurück auf dunkel; die Wahl gilt auch beim nächsten Start.
 - Bei Rauschen ohne Sprache erfindet Whisper manchmal kurze Sätze wie „Vielen Dank.“ oder „Ja.“ – einfach löschen.
 
 ## Modelle

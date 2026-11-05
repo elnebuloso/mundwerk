@@ -807,8 +807,9 @@ impl eframe::App for App {
             ui.horizontal(|ui| {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let mut theme = ui_ctx.theme();
-                    let light = ui.selectable_value(&mut theme, egui::Theme::Light, "☀").on_hover_text("Hell");
+                    // right-to-left layout: the first one added sits rightmost
                     let dark = ui.selectable_value(&mut theme, egui::Theme::Dark, "🌙").on_hover_text("Dunkel");
+                    let light = ui.selectable_value(&mut theme, egui::Theme::Light, "☀").on_hover_text("Hell");
                     if light.changed() || dark.changed() {
                         ui_ctx.set_theme(theme);
                         save_theme(theme);
