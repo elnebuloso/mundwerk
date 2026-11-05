@@ -66,7 +66,7 @@ Wurde das versehentlich abgelehnt, meldet Mundwerk „Kein Ton aufgenommen“. D
 
 ### Auf dem Mac anders
 
-- Tastenkürzel mit **⌘** statt Strg: `⌘R` startet und stoppt die Aufnahme, `⌘⇧C` kopiert den Text.
+- Tastenkürzel mit **⌘** statt Strg: `⌘R` startet und stoppt die Aufnahme, `⌘⇧C` kopiert den Text. Das Kürzel für alle Fenster ist `⌃⌥Leertaste` (Control, Option, Leertaste), eingefügt wird mit `⌘V`.
 - Die Grafikeinheit des Apple-Chips wird über Metal genutzt. Die Fußzeile zeigt sie mit „GPU – …“.
 - Die Daten liegen im Ordner `.mundwerk` in deinem Benutzerordner. Der Finder blendet Ordner mit Punkt aus; `⌘⇧.` im Finder zeigt sie.
 - Zum Deinstallieren **Mundwerk** aus „Programme“ in den Papierkorb ziehen und den Ordner `.mundwerk` löschen.
@@ -83,10 +83,22 @@ Ab dem nächsten Start lädt Mundwerk das Modell selbst.
 
 | Taste | Wirkung |
 |---|---|
-| `Strg+R` (Mac: `⌘R`) | Aufnahme starten / stoppen |
-| `Strg+Shift+C` (Mac: `⌘⇧C`) | ganzen Text in die Zwischenablage kopieren |
+| `Strg+Alt+Leertaste` (Mac: `⌃⌥Leertaste`) | Aufnahme starten / stoppen – aus **jedem** Fenster |
+| `Strg+R` (Mac: `⌘R`) | Aufnahme starten / stoppen, wenn Mundwerk im Vordergrund ist |
+| `Strg+Shift+C` (Mac: `⌘⇧C`) | ganzen Text in die Zwischenablage kopieren, wenn Mundwerk im Vordergrund ist |
 
-Die Tasten wirken nur, solange das Mundwerk-Fenster im Vordergrund ist.
+### In anderen Programmen diktieren
+
+Mit **„Automatisch kopieren“** (Haken unter dem Textfeld, von Anfang an gesetzt) landet nach jedem Diktat der ganze Text aus dem Textfeld in der Zwischenablage. Zusammen mit dem Kürzel `Strg+Alt+Leertaste` diktierst du so in jedes Programm, ohne das Fenster zu wechseln:
+
+1. Im Zielprogramm an die gewünschte Stelle klicken, z. B. ins Eingabefeld in VS Code.
+2. `Strg+Alt+Leertaste` drücken und sprechen. Mundwerk kann dabei im Hintergrund liegen; die Taskleiste zeigt „● Aufnahme – Mundwerk“.
+3. `Strg+Alt+Leertaste` noch einmal drücken oder einfach still sein – nach 4 Sekunden stoppt die Aufnahme von selbst.
+4. Sobald der Text erkannt ist, mit `Strg+V` einfügen.
+
+Der Haken überschreibt, was vorher in der Zwischenablage lag. Ohne Haken kopierst du wie bisher selbst. Die Wahl gilt auch beim nächsten Start.
+
+Das Kürzel wirkt unter Windows, auf dem Mac und unter Linux mit X11. Unter Linux mit Wayland lässt das System kein Kürzel zu, das aus anderen Fenstern heraus wirkt, und unter WSL erreicht es keine Windows-Programme – dort gilt nur `Strg+R` im Mundwerk-Fenster. Ist das Kürzel schon von einem anderen Programm belegt (oder läuft Mundwerk zweimal), steht das im Protokoll, und der Aufnahme-Button nennt `Strg+R` statt `Strg+Alt+Leertaste`.
 
 - Die Aufnahme stoppt von selbst, wenn du 4 Sekunden lang nichts sagst. Kommt nach dem Start gar keine Sprache, stoppt sie nach 15 Sekunden. In den letzten 3 Sekunden zählt die Zeile unter dem Button herunter („Stille, stoppt in 3 s“). Was bis dahin gesprochen wurde, wird ganz normal erkannt. Weiterreden nach dem Stopp: einfach neu starten, der Text kommt an die Cursorposition.
 - Neuer Text wird an der Cursorposition eingefügt. Ohne gesetzten Cursor kommt er ans Ende.

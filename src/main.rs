@@ -30,6 +30,7 @@ const MIC_HINT: &str = if cfg!(target_os = "macos") {
 // egui's COMMAND modifier is Cmd on macOS and Ctrl elsewhere.
 const RECORD_KEY_LABEL: &str = if cfg!(target_os = "macos") { "⌘R" } else { "Strg+R" };
 const COPY_KEY_LABEL: &str = if cfg!(target_os = "macos") { "⌘⇧C" } else { "Strg+Shift+C" };
+const GLOBAL_KEY_LABEL: &str = if cfg!(target_os = "macos") { "⌃⌥Leertaste" } else { "Strg+Alt+Leertaste" };
 const GPU_API: &str = if cfg!(feature = "metal") { "Metal" } else { "Vulkan" };
 // below about -40 dBFS throughout: nothing but noise floor, and Whisper would invent text for it
 const SILENCE: f32 = 0.01;
@@ -45,6 +46,8 @@ enum Msg {
     Loaded(Arc<WhisperContext>, String),
     Text(String),
     Error(String),
+    /// The global shortcut was pressed, possibly while another window has the focus.
+    Hotkey,
 }
 
 struct Recording {
@@ -77,6 +80,9 @@ struct App {
     open_log: bool,
     recording_title: bool,
     device: String,
+    auto_copy: bool,
+    /// Keeps the global shortcut registered; None where the system refused it.
+    hotkeys: Option<global_hotkey::GlobalHotKeyManager>,
     tx: Sender<Msg>,
     rx: Receiver<Msg>,
 }
@@ -375,6 +381,36 @@ fn save_theme(theme: egui::Theme) {
     let _ = std::fs::write(theme_path(), value);
 }
 
+fn auto_copy_path() -> PathBuf {
+    app_dir().join("auto-copy")
+}
+
+fn load_auto_copy() -> bool {
+    std::fs::read_to_string(auto_copy_path()).map_or(true, |s| s.trim() != "off")
+}
+
+fn save_auto_copy(on: bool) {
+    // losing the choice only means copying is on at the next start
+    let _ = std::fs::write(auto_copy_path(), if on { "on" } else { "off" });
+}
+
+/// Registers the shortcut that toggles recording from any window; the manager must live on the
+/// thread running the event loop (Windows, macOS).
+fn register_hotkey(tx: Sender<Msg>, ui_ctx: egui::Context) -> Result<global_hotkey::GlobalHotKeyManager, String> {
+    use global_hotkey::hotkey::{Code, HotKey, Modifiers};
+    use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState};
+    let manager = GlobalHotKeyManager::new().map_err(|e| e.to_string())?;
+    manager.register(HotKey::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::Space)).map_err(|e| e.to_string())?;
+    GlobalHotKeyEvent::set_event_handler(Some(move |e: GlobalHotKeyEvent| {
+        if e.state == HotKeyState::Pressed {
+            let _ = tx.send(Msg::Hotkey);
+            // the window may be in the background, where nothing else wakes it up
+            ui_ctx.request_repaint();
+        }
+    }));
+    Ok(manager)
+}
+
 fn decimal(secs: f32) -> String {
     format!("{secs:.1}").replace('.', ",")
 }
@@ -405,6 +441,8 @@ impl App {
             open_log: false,
             recording_title: false,
             device: compute_device(),
+            auto_copy: load_auto_copy(),
+            hotkeys: None,
             tx,
             rx,
         };
@@ -418,6 +456,13 @@ impl App {
         }
         app.log(format!("Mundwerk {} gestartet, Daten in {}", version(), dir.display()));
         app.log(format!("Berechnung läuft auf: {}", app.device));
+        match register_hotkey(app.tx.clone(), ui_ctx.clone()) {
+            Ok(m) => {
+                app.hotkeys = Some(m);
+                app.log(format!("Tastenkürzel {GLOBAL_KEY_LABEL} startet und stoppt die Aufnahme aus jedem Fenster"));
+            }
+            Err(e) => app.log(format!("Tastenkürzel {GLOBAL_KEY_LABEL} nicht verfügbar: {e}")),
+        }
         if model_path(MODELS[0].0).exists() {
             app.start_load(ui_ctx);
         } else {
@@ -523,7 +568,7 @@ impl App {
         self.copied_at = Some(Instant::now());
     }
 
-    fn handle(&mut self, m: Msg) {
+    fn handle(&mut self, m: Msg, ui_ctx: &egui::Context) {
         match m {
             Msg::Progress(p) => self.progress = p,
             Msg::Log(s) => self.log(s),
@@ -545,6 +590,10 @@ impl App {
                     self.move_cursor = true;
                     self.last_cleared = None;
                     self.status = format!("Text eingefügt ({} s Audio, {} s)", decimal(self.audio_secs), decimal(secs));
+                    if self.auto_copy {
+                        self.copy(ui_ctx);
+                        self.status.push_str(", kopiert");
+                    }
                 }
             }
             Msg::Error(e) => {
@@ -552,6 +601,11 @@ impl App {
                 self.transcribing_since = None;
                 self.status.clear();
                 self.fail(e);
+            }
+            Msg::Hotkey => {
+                if self.can_record() {
+                    self.toggle(ui_ctx);
+                }
             }
         }
     }
@@ -625,7 +679,10 @@ impl App {
                         let secs = r.samples.lock().unwrap().len() as u32 / r.rate.max(1);
                         (format!("Aufnahme stoppen · {secs} s"), egui::Color32::from_rgb(185, 28, 28))
                     }
-                    None => (format!("Aufnahme starten  ({RECORD_KEY_LABEL})"), egui::Color32::from_rgb(37, 99, 235)),
+                    None => {
+                        let key = if self.hotkeys.is_some() { GLOBAL_KEY_LABEL } else { RECORD_KEY_LABEL };
+                        (format!("Aufnahme starten  ({key})"), egui::Color32::from_rgb(37, 99, 235))
+                    }
                 };
                 let text = egui::RichText::new(label).size(17.0);
                 let can_record = self.can_record();
@@ -678,6 +735,9 @@ impl App {
                     self.last_cleared = Some(std::mem::take(&mut self.text));
                     self.cursor = None;
                 }
+                if ui.checkbox(&mut self.auto_copy, "Automatisch kopieren").on_hover_text("Legt nach jedem Diktat den ganzen Text in die Zwischenablage").changed() {
+                    save_auto_copy(self.auto_copy);
+                }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let copied = self.copied_at.is_some_and(|t| t.elapsed() < Duration::from_secs(2));
                     let label = if copied { "Kopiert ✓".to_string() } else { format!("In Zwischenablage kopieren  ({COPY_KEY_LABEL})") };
@@ -720,7 +780,7 @@ impl eframe::App for App {
     fn ui(&mut self, root: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ui_ctx = &root.ctx().clone();
         while let Ok(m) = self.rx.try_recv() {
-            self.handle(m);
+            self.handle(m, ui_ctx);
         }
 
         let record_key = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::R);
