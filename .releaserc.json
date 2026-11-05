@@ -13,7 +13,8 @@
 			{
 				"assets": [
 					{ "path": "dist/mundwerk-linux-x86_64", "label": "mundwerk-linux-x86_64" },
-					{ "path": "dist/mundwerk-windows-x86_64.exe", "label": "mundwerk-windows-x86_64.exe" }
+					{ "path": "dist/mundwerk-windows-x86_64.exe", "label": "mundwerk-windows-x86_64.exe" },
+					{ "path": "dist/mundwerk-macos-arm64.zip", "label": "mundwerk-macos-arm64.zip" }
 				],
 				"successComment": false,
 				"failComment": false,

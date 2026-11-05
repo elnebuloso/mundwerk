@@ -17,3 +17,5 @@ whisper-rs = { version = "0.16", features = ["raw-api"] }  # raw-api: ggml devic
 # Vulkan picks up an available GPU (NVIDIA/AMD/Intel) at runtime and falls back to CPU
 default = ["vulkan"]
 vulkan = ["whisper-rs/vulkan"]
+# macOS has no Vulkan driver; the Mac build uses --no-default-features --features metal
+metal = ["whisper-rs/metal"]

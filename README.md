@@ -12,8 +12,9 @@ Unter [Releases](../../releases) die passende Datei herunterladen und starten. P
 |---|---|---|
 | Windows 10/11 (64 Bit) | `mundwerk-windows-x86_64.exe` | – |
 | Linux x86_64 | `mundwerk-linux-x86_64` | glibc 2.35 oder neuer (z. B. Ubuntu 22.04), `libasound2`, `libvulkan1` |
+| macOS mit Apple-Chip (M1 und neuer) | `mundwerk-macos-arm64.zip` | macOS 13 Ventura oder neuer |
 
-Der Prozessor muss AVX und F16C können: Intel ab Ivy Bridge, AMD ab Piledriver bzw. Jaguar, also etwa ab Baujahr 2012.
+Unter Windows und Linux muss der Prozessor AVX und F16C können: Intel ab Ivy Bridge, AMD ab Piledriver bzw. Jaguar, also etwa ab Baujahr 2012.
 
 **Windows:** Die `.exe` ist nicht signiert. SmartScreen warnt beim ersten Start; „Weitere Informationen“ › „Trotzdem ausführen“ startet sie.
 
@@ -23,6 +24,52 @@ Der Prozessor muss AVX und F16C können: Intel ab Ivy Bridge, AMD ab Piledriver 
 chmod +x mundwerk-linux-x86_64
 ./mundwerk-linux-x86_64
 ```
+
+**Mac:** siehe den nächsten Abschnitt.
+
+## Mac
+
+Mundwerk läuft auf Macs mit Apple-Chip (M1, M2, M3, M4 …). Welchen Chip dein Mac hat, steht im Apple-Menü (Apfel oben links) › „Über diesen Mac“ in der Zeile „Chip“. Steht dort „Prozessor … Intel“, läuft Mundwerk auf diesem Mac nicht.
+
+### Herunterladen und auspacken
+
+1. Unter [Releases](../../releases) beim neuesten Release `mundwerk-macos-arm64.zip` herunterladen.
+2. Im Finder unter „Downloads“ die ZIP-Datei doppelklicken. Daneben erscheint **Mundwerk** (`Mundwerk.app`).
+3. **Mundwerk** in den Ordner „Programme“ ziehen. Das ist keine Installation, die App ist nur diese eine Datei. Aus „Programme“ heraus merkt sich macOS die Freigaben aus den nächsten Schritten zuverlässig.
+
+### Erster Start: „Trotzdem öffnen“
+
+Mundwerk ist nicht bei Apple registriert (das kostet 99 $ im Jahr). Deshalb blockiert macOS den ersten Start, einmalig:
+
+1. **Mundwerk** in „Programme“ doppelklicken. macOS meldet „„Mundwerk“ wurde nicht geöffnet“ (ältere macOS-Versionen: „kann nicht geöffnet werden, da Apple darin nicht nach Schadsoftware suchen kann“). Auf **Fertig** bzw. **OK** klicken, *nicht* auf „In den Papierkorb legen“.
+2. Apple-Menü › **Systemeinstellungen** › **Datenschutz & Sicherheit** öffnen und ganz nach unten scrollen bis zum Abschnitt „Sicherheit“.
+3. Dort steht „„Mundwerk“ wurde blockiert …“. Auf **Trotzdem öffnen** klicken und mit Passwort oder Touch ID bestätigen.
+4. In der folgenden Rückfrage noch einmal **Trotzdem öffnen** wählen.
+
+Ab jetzt startet Mundwerk normal per Doppelklick. Nach einem Update auf ein neues Release fragt macOS noch einmal, dann die Schritte wiederholen.
+
+Unter macOS 13 und 14 geht es auch kürzer: Mundwerk mit **Rechtsklick** (oder Ctrl-Klick) › **Öffnen** › **Öffnen**. Ab macOS 15 gibt es diesen Weg nicht mehr.
+
+**Meldet macOS „Mundwerk ist beschädigt“** oder fehlt der Knopf „Trotzdem öffnen“, hilft das Terminal (Programme › Dienstprogramme › Terminal). Diesen Befehl eingeben und Enter drücken:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/Mundwerk.app
+```
+
+Er entfernt nur die Download-Markierung, die macOS an die App geheftet hat. Danach startet Mundwerk per Doppelklick.
+
+### Mikrofon freigeben
+
+Bei der ersten Aufnahme fragt macOS: „„Mundwerk“ möchte auf das Mikrofon zugreifen.“ Auf **Erlauben** klicken.
+
+Wurde das versehentlich abgelehnt, meldet Mundwerk „Kein Ton aufgenommen“. Dann unter Apple-Menü › **Systemeinstellungen** › **Datenschutz & Sicherheit** › **Mikrofon** den Schalter bei **Mundwerk** einschalten und Mundwerk neu starten.
+
+### Auf dem Mac anders
+
+- Tastenkürzel mit **⌘** statt Strg: `⌘R` startet und stoppt die Aufnahme, `⌘⇧C` kopiert den Text.
+- Die Grafikeinheit des Apple-Chips wird über Metal genutzt. Die Fußzeile zeigt sie mit „GPU – …“.
+- Die Daten liegen im Ordner `.mundwerk` in deinem Benutzerordner. Der Finder blendet Ordner mit Punkt aus; `⌘⇧.` im Finder zeigt sie.
+- Zum Deinstallieren **Mundwerk** aus „Programme“ in den Papierkorb ziehen und den Ordner `.mundwerk` löschen.
 
 ## Erster Start
 
@@ -36,8 +83,8 @@ Ab dem nächsten Start lädt Mundwerk das Modell selbst.
 
 | Taste | Wirkung |
 |---|---|
-| `Strg+R` | Aufnahme starten / stoppen |
-| `Strg+Shift+C` | ganzen Text in die Zwischenablage kopieren |
+| `Strg+R` (Mac: `⌘R`) | Aufnahme starten / stoppen |
+| `Strg+Shift+C` (Mac: `⌘⇧C`) | ganzen Text in die Zwischenablage kopieren |
 
 Die Tasten wirken nur, solange das Mundwerk-Fenster im Vordergrund ist.
 
@@ -61,7 +108,7 @@ Geladen wird von `https://huggingface.co/ggerganov/whisper.cpp`. Nach dem Downlo
 
 ## GPU oder CPU
 
-Mundwerk nutzt über Vulkan automatisch eine vorhandene Grafikkarte (NVIDIA, AMD, Intel) und rechnet sonst auf der CPU. Die Fußzeile „Berechnung läuft auf:“ zeigt, was genutzt wird, und bei CPU den Grund:
+Mundwerk nutzt automatisch eine vorhandene Grafikkarte und rechnet sonst auf der CPU: unter Windows und Linux über Vulkan (NVIDIA, AMD, Intel), auf dem Mac über Metal. Die Fußzeile „Berechnung läuft auf:“ zeigt, was genutzt wird, und bei CPU den Grund:
 
 - „keine Vulkan-fähige GPU gefunden“ – Grafiktreiber aktualisieren. Unter Windows bringt der normale Treiber Vulkan mit, unter Linux muss `libvulkan1` samt Treiber installiert sein.
 - „ohne GPU-Unterstützung gebaut“ – ein selbst gebautes Binary mit `--no-default-features`.
@@ -70,7 +117,7 @@ Auf der CPU dauert die Erkennung ein Vielfaches der Aufnahme: Auf einem i5-3570K
 
 ## Dateien
 
-Alles liegt in einem Ordner: `%USERPROFILE%\.mundwerk\` unter Windows, `~/.mundwerk/` unter Linux.
+Alles liegt in einem Ordner: `%USERPROFILE%\.mundwerk\` unter Windows, `~/.mundwerk/` unter Linux und macOS.
 
 - `models/` – die heruntergeladenen Modelle
 - `mundwerk.log` – das Protokoll, dieselben Zeilen wie unter „Protokoll“ im Fenster, mit Sekunden seit dem Programmstart
@@ -82,7 +129,7 @@ Zum Deinstallieren die Programmdatei und diesen Ordner löschen.
 
 Fehler stehen rot mit ⚠ unter dem Aufnahme-Button und zusätzlich im Protokoll. Die Version steht rechts in der Fußzeile („Version 0.2.0“; selbst gebaut: „Version dev“).
 
-**„Kein Ton aufgenommen“** – Das Mikrofon liefert nur Stille. Unter Windows: `Einstellungen > Datenschutz und Sicherheit > Mikrofon`, dort „Mikrofonzugriff“ und „Desktop-Apps den Zugriff auf Ihr Mikrofon erlauben“ einschalten. Mundwerk nimmt über das Standard-Aufnahmegerät des Systems auf; welches das ist, steht im Protokoll („Aufnahme über Mikrofon: …“).
+**„Kein Ton aufgenommen“** – Das Mikrofon liefert nur Stille. Unter Windows: `Einstellungen > Datenschutz und Sicherheit > Mikrofon`, dort „Mikrofonzugriff“ und „Desktop-Apps den Zugriff auf Ihr Mikrofon erlauben“ einschalten. Auf dem Mac: siehe „Mikrofon freigeben“ im Abschnitt Mac. Mundwerk nimmt über das Standard-Aufnahmegerät des Systems auf; welches das ist, steht im Protokoll („Aufnahme über Mikrofon: …“).
 
 **„Kein Mikrofon gefunden“** – Es gibt kein Standard-Aufnahmegerät. Mikrofon anschließen bzw. in den Sound-Einstellungen als Eingabegerät wählen.
 
@@ -117,11 +164,13 @@ make test    # Unit-Tests
 
 Ohne GPU-Unterstützung: `cargo build --release --no-default-features`
 
+Auf dem Mac (Apple-Chip) braucht es nur Rust und die Xcode Command Line Tools (`xcode-select --install`), dann `cargo build --release --no-default-features --features metal`. `scripts/macos-app.sh target/release/mundwerk dev Mundwerk.zip` packt das Binary in eine `Mundwerk.app`.
+
 Unter Windows überschreitet der Build von whisper.cpp unter `.\target` die Pfadgrenze von 260 Zeichen. Mit einem kurzen Build-Verzeichnis geht es, z. B. `set CARGO_TARGET_DIR=C:\t` vor `cargo build --release`.
 
 ## Releases
 
-Jeder Push auf `main`, der Code ändert (`src/`, `Cargo.toml`, `Cargo.lock`, die CI-Konfiguration), wird für Linux und Windows gebaut und getestet. Enthält er seit dem letzten Release einen Commit `feat:` oder `fix:` nach [Conventional Commits](https://www.conventionalcommits.org/), erzeugt semantic-release den Tag `vX.Y.Z` und ein GitHub-Release mit beiden Binaries. `chore:`, `docs:`, `ci:`, `refactor:` und `test:` lösen kein Release aus; Änderungen nur an README oder Doku starten gar keinen Build.
+Jeder Push auf `main`, der Code ändert (`src/`, `scripts/`, `Cargo.toml`, `Cargo.lock`, die CI-Konfiguration), wird für Linux, Windows und macOS gebaut und getestet. Enthält er seit dem letzten Release einen Commit `feat:` oder `fix:` nach [Conventional Commits](https://www.conventionalcommits.org/), erzeugt semantic-release den Tag `vX.Y.Z` und ein GitHub-Release mit allen drei Dateien. `chore:`, `docs:`, `ci:`, `refactor:` und `test:` lösen kein Release aus; Änderungen nur an README oder Doku starten gar keinen Build.
 
 ## Lizenz
 

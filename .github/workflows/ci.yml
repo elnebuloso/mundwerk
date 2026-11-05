@@ -1,8 +1,8 @@
 name: CI
 
-# Pull requests build and test both platforms. A push to main does the same, then semantic-release
-# tags and publishes a GitHub release with both binaries; without `feat` or `fix` since the last tag
-# nothing is released. Changes outside the code (README, backlog, docs) start no run at all.
+# Pull requests build and test Linux, Windows and macOS. A push to main does the same, then
+# semantic-release tags and publishes a GitHub release with all three; without `feat` or `fix`
+# since the last tag nothing is released. Changes outside the code (README, backlog, docs) start no run at all.
 on:
   push:
     branches: [main]
@@ -12,6 +12,7 @@ on:
       - Cargo.lock
       - .github/workflows/ci.yml
       - .releaserc.json
+      - scripts/**
   pull_request:
     paths:
       - src/**
@@ -19,6 +20,7 @@ on:
       - Cargo.lock
       - .github/workflows/ci.yml
       - .releaserc.json
+      - scripts/**
   workflow_dispatch:
 
 permissions:
@@ -37,6 +39,8 @@ env:
   GGML_AVX2: "OFF"
   GGML_FMA: "OFF"
   GGML_F16C: "ON"
+  # The flags above only apply to x86; on the Mac this sets the oldest macOS the app runs on.
+  MACOSX_DEPLOYMENT_TARGET: "13.0"
 
 jobs:
   # The binaries are built before the release exists, so the version they report is computed first.
@@ -75,6 +79,12 @@ jobs:
             target_dir: C:/t
             bin: C:/t/release/mundwerk.exe
             asset: mundwerk-windows-x86_64.exe
+          - os: macos-latest # Apple Silicon runner
+            target_dir: target
+            bin: target/release/mundwerk
+            asset: mundwerk-macos-arm64.zip
+            # macOS has no Vulkan driver; whisper.cpp uses the GPU through Metal there
+            features: --no-default-features --features metal
     runs-on: ${{ matrix.os }}
     env:
       CARGO_TARGET_DIR: ${{ matrix.target_dir }}
@@ -93,6 +103,7 @@ jobs:
             ${{ matrix.target_dir }}
           key: build-${{ runner.os }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('Cargo.lock') }}
       - uses: jakoch/install-vulkan-sdk-action@v1
+        if: runner.os != 'macOS'
         with:
           install_runtime: false
           cache: true
@@ -104,9 +115,13 @@ jobs:
         shell: bash
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then export RUSTFLAGS="-C target-feature=+crt-static"; fi
-          cargo build --release --locked
-          cargo test --release --locked
-          cp "${{ matrix.bin }}" "${{ matrix.asset }}"
+          cargo build --release --locked ${{ matrix.features }}
+          cargo test --release --locked ${{ matrix.features }}
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            scripts/macos-app.sh "${{ matrix.bin }}" "$MUNDWERK_VERSION" "${{ matrix.asset }}"
+          else
+            cp "${{ matrix.bin }}" "${{ matrix.asset }}"
+          fi
       - uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.asset }}

@@ -22,7 +22,15 @@ const MODELS: &[(&str, &str, &str)] = &[
     ("base", "Am schnellsten, ungenauer", "0,15 GB"),
 ];
 const LANGS: &[(&str, &str)] = &[("de", "Deutsch"), ("en", "Englisch"), ("auto", "Automatisch")];
-const MIC_HINT: &str = "Mikrofon prüfen – unter Windows: Einstellungen > Datenschutz und Sicherheit > Mikrofon";
+const MIC_HINT: &str = if cfg!(target_os = "macos") {
+    "Mikrofon prüfen – Systemeinstellungen > Datenschutz & Sicherheit > Mikrofon, dort Mundwerk einschalten"
+} else {
+    "Mikrofon prüfen – unter Windows: Einstellungen > Datenschutz und Sicherheit > Mikrofon"
+};
+// egui's COMMAND modifier is Cmd on macOS and Ctrl elsewhere.
+const RECORD_KEY_LABEL: &str = if cfg!(target_os = "macos") { "⌘R" } else { "Strg+R" };
+const COPY_KEY_LABEL: &str = if cfg!(target_os = "macos") { "⌘⇧C" } else { "Strg+Shift+C" };
+const GPU_API: &str = if cfg!(feature = "metal") { "Metal" } else { "Vulkan" };
 // below about -40 dBFS throughout: nothing but noise floor, and Whisper would invent text for it
 const SILENCE: f32 = 0.01;
 
@@ -83,7 +91,7 @@ fn model_url(name: &str) -> String {
 
 /// Names the device whisper.cpp will compute on, and why.
 fn compute_device() -> String {
-    if !cfg!(feature = "vulkan") {
+    if !cfg!(any(feature = "vulkan", feature = "metal")) {
         return "CPU – ohne GPU-Unterstützung gebaut".into();
     }
     use whisper_rs::whisper_rs_sys as sys;
@@ -99,7 +107,7 @@ fn compute_device() -> String {
             return format!("GPU – {desc} ({name}), automatisch gewählt");
         }
     }
-    "CPU – keine Vulkan-fähige GPU gefunden".into()
+    format!("CPU – keine {GPU_API}-fähige GPU gefunden")
 }
 
 /// Downloads the model from Hugging Face if missing, then loads it into memory.
@@ -572,7 +580,7 @@ impl App {
                         let secs = r.samples.lock().unwrap().len() as u32 / r.rate.max(1);
                         (format!("Aufnahme stoppen · {secs} s"), egui::Color32::from_rgb(185, 28, 28))
                     }
-                    None => ("Aufnahme starten  (Strg+R)".to_string(), egui::Color32::from_rgb(37, 99, 235)),
+                    None => (format!("Aufnahme starten  ({RECORD_KEY_LABEL})"), egui::Color32::from_rgb(37, 99, 235)),
                 };
                 let text = egui::RichText::new(label).size(17.0);
                 let can_record = self.can_record();
@@ -627,7 +635,7 @@ impl App {
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let copied = self.copied_at.is_some_and(|t| t.elapsed() < Duration::from_secs(2));
-                    let label = if copied { "Kopiert ✓" } else { "In Zwischenablage kopieren  (Strg+Shift+C)" };
+                    let label = if copied { "Kopiert ✓".to_string() } else { format!("In Zwischenablage kopieren  ({COPY_KEY_LABEL})") };
                     if ui.add_enabled(!self.text.is_empty(), egui::Button::new(label)).clicked() {
                         self.copy(ui_ctx);
                     }
