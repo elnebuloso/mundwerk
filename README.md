@@ -96,6 +96,8 @@ Mit **„Automatisch kopieren“** (Haken unter dem Textfeld, von Anfang an gese
 3. `Strg+Alt+Leertaste` noch einmal drücken oder einfach still sein – nach 4 Sekunden stoppt die Aufnahme von selbst.
 4. Sobald der Text erkannt ist, mit `Strg+V` einfügen.
 
+Startest du per Tastenkürzel, leert Mundwerk vorher das Textfeld – der letzte Text ist dann ja meist schon eingefügt. So steht jedes Diktat für sich, und in der Zwischenablage landet nur das neue. „Rückgängig“ holt den vorigen Text zurück. Startest du im Fenster (Button oder `Strg+R`), bleibt der Text stehen und das Diktat kommt an die Cursorposition.
+
 Weil Mundwerk dabei meist verdeckt ist, meldet es sich mit leisen, kurzen Tönen:
 
 | Ton | Wann |
@@ -112,7 +114,7 @@ Das Kürzel wirkt unter Windows, auf dem Mac und unter Linux mit X11. Unter Linu
 
 - Die Aufnahme stoppt von selbst, wenn du 4 Sekunden lang nichts sagst. Kommt nach dem Start gar keine Sprache, stoppt sie nach 15 Sekunden. In den letzten 3 Sekunden zählt die Zeile unter dem Button herunter („Stille, stoppt in 3 s“). Was bis dahin gesprochen wurde, wird ganz normal erkannt. Weiterreden nach dem Stopp: einfach neu starten, der Text kommt an die Cursorposition.
 - Neuer Text wird an der Cursorposition eingefügt. Ohne gesetzten Cursor kommt er ans Ende.
-- „Leeren“ löscht den ganzen Text. „Rückgängig“ holt ihn zurück, aber nur bis zum nächsten Diktat oder zur nächsten Änderung im Textfeld.
+- „Leeren“ löscht den ganzen Text. „Rückgängig“ holt ihn zurück, bis du im Textfeld etwas änderst; was du inzwischen diktiert hast, bleibt dahinter stehen.
 - Die Sprache stellst du rechts neben dem Aufnahme-Button ein: „Deutsch“, „Englisch“ oder „Automatisch“.
 - Mundwerk startet dunkel, unabhängig von der Systemeinstellung. Rechts in der Fußzeile schaltest du mit ☀ auf hell und mit 🌙 (ganz rechts) zurück auf dunkel; die Wahl gilt auch beim nächsten Start.
 - Bei Rauschen ohne Sprache erfindet Whisper manchmal kurze Sätze wie „Vielen Dank.“ oder „Ja.“ – einfach löschen.

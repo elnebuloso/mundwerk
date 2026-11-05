@@ -376,6 +376,15 @@ fn insert_dictation(text: &mut String, at_char: usize, new: &str) -> usize {
     text[..at + piece.len()].chars().count()
 }
 
+/// Undo for a cleared text field: the cleared text comes back, anything dictated since stays after it.
+fn restore_cleared(cleared: &str, current: &str) -> String {
+    let mut text = cleared.to_string();
+    if !current.is_empty() {
+        insert_dictation(&mut text, cleared.chars().count(), current);
+    }
+    text
+}
+
 fn build_stream<T: SizedSample>(
     dev: &cpal::Device,
     cfg: &cpal::StreamConfig,
@@ -622,6 +631,11 @@ impl App {
                 Ok(r) => {
                     if audible {
                         play_cue(Cue::Start, self.tx.clone());
+                        // dictating from another window: the last text was most likely pasted there already
+                        if !self.text.is_empty() {
+                            self.last_cleared = Some(std::mem::take(&mut self.text));
+                            self.cursor = None;
+                        }
                     }
                     self.log(format!("Aufnahme über Mikrofon: {}", r.device));
                     self.rec = Some(r);
@@ -681,7 +695,6 @@ impl App {
                     let at = self.cursor.unwrap_or(self.text.chars().count());
                     self.cursor = Some(insert_dictation(&mut self.text, at, &t));
                     self.move_cursor = true;
-                    self.last_cleared = None;
                     self.status = format!("Text eingefügt ({} s Audio, {} s)", decimal(self.audio_secs), decimal(secs));
                     if self.auto_copy {
                         self.copy(ui_ctx);
@@ -823,7 +836,7 @@ impl App {
             ui.horizontal(|ui| {
                 if let Some(old) = &self.last_cleared {
                     if ui.button("Rückgängig").clicked() {
-                        self.text = old.clone();
+                        self.text = restore_cleared(old, &self.text);
                         self.cursor = None;
                         self.last_cleared = None;
                     }
@@ -1068,6 +1081,13 @@ mod tests {
         let stop = cue_samples(Cue::Stop, rate);
         assert!(pitch(&start[..note], rate) < pitch(&start[start.len() - note..], rate));
         assert!(pitch(&stop[..note], rate) > pitch(&stop[stop.len() - note..], rate));
+    }
+
+    #[test]
+    fn restore_cleared_keeps_new_dictation_after_old_text() {
+        assert_eq!(restore_cleared("Alter Text.", ""), "Alter Text.");
+        assert_eq!(restore_cleared("Alter Text.", "Neues Diktat."), "Alter Text. Neues Diktat.");
+        assert_eq!(restore_cleared("", "Neu."), "Neu.");
     }
 
     #[test]
