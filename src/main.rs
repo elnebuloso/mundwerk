@@ -300,8 +300,8 @@ fn transcribe(ctx: &WhisperContext, audio: &[f32], lang: &str) -> Result<String,
     p.set_print_realtime(false);
     p.set_print_timestamps(false);
     state.full(p, audio).map_err(|e| e.to_string())?;
-    let text: String = state.as_iter().filter_map(|s| s.to_str_lossy().ok().map(|t| t.into_owned())).collect();
-    Ok(text.trim().to_string())
+    let bytes: Vec<u8> = state.as_iter().filter_map(|s| s.to_bytes().ok().map(<[u8]>::to_vec)).flatten().collect();
+    Ok(decode_text(&bytes))
 }
 
 /// Resamples mono audio to the 16 kHz Whisper expects.
@@ -343,19 +343,43 @@ fn level(samples: &[f32]) -> f32 {
     ((20.0 * rms(samples).max(1e-6).log10() + 60.0) / 60.0).clamp(0.0, 1.0)
 }
 
-/// Seconds left until the recording should stop for lack of speech, and whether speech was heard.
-fn secs_until_auto_stop(samples: &[f32], rate: u32) -> (f32, bool) {
-    let rate = rate.max(10) as usize;
-    // only the last 30 s: older speech would have ended the recording long ago, and the cost stays flat
-    let tail = &samples[samples.len().saturating_sub(rate * 30)..];
-    let windows: Vec<f32> = tail.chunks_exact(rate / 10).map(rms).collect();
+/// For each 100 ms window of the samples, whether it holds speech.
+fn speech_windows(samples: &[f32], rate: u32) -> Vec<bool> {
+    let windows: Vec<f32> = samples.chunks_exact((rate.max(10) / 10) as usize).map(rms).collect();
     // below 1e-4 is digital zero (stream start, muted device), not the room's noise floor
     let floor = windows.iter().copied().filter(|&r| r > 1e-4).fold(f32::INFINITY, f32::min);
     let threshold = if floor.is_finite() { (floor * SPEECH_OVER_FLOOR).max(SILENCE) } else { SILENCE };
-    match windows.iter().rposition(|&r| r > threshold) {
-        Some(last) => (STOP_AFTER_SPEECH_SECS - (windows.len() - 1 - last) as f32 / 10.0, true),
+    windows.iter().map(|&r| r > threshold).collect()
+}
+
+/// Seconds left until the recording should stop for lack of speech, and whether speech was heard.
+fn secs_until_auto_stop(samples: &[f32], rate: u32) -> (f32, bool) {
+    let rate = rate.max(10);
+    // only the last 30 s: older speech would have ended the recording long ago, and the cost stays flat
+    let tail = &samples[samples.len().saturating_sub(rate as usize * 30)..];
+    let speech = speech_windows(tail, rate);
+    match speech.iter().rposition(|&s| s) {
+        Some(last) => (STOP_AFTER_SPEECH_SECS - (speech.len() - 1 - last) as f32 / 10.0, true),
         None => (STOP_WITHOUT_SPEECH_SECS - samples.len() as f32 / rate as f32, false),
     }
+}
+
+/// The stretch of the recording from the first to the last speech, with a margin, or None without speech.
+/// Whisper invents phrases like "Vielen Dank." for silence, so it only gets the spoken part.
+fn speech_span(audio: &[f32], rate: u32) -> Option<&[f32]> {
+    let rate = rate.max(10) as usize;
+    let speech = speech_windows(audio, rate as u32);
+    let first = speech.iter().position(|&s| s)?;
+    let last = speech.iter().rposition(|&s| s)?;
+    let start = (first * rate / 10).saturating_sub(rate * 3 / 10);
+    let end = ((last + 1) * rate / 10 + rate / 2).min(audio.len());
+    Some(&audio[start..end])
+}
+
+/// Whisper's text as bytes, decoded once: a character can be split across segments, and bytes
+/// that never form a character are dropped instead of showing up as "�".
+fn decode_text(bytes: &[u8]) -> String {
+    String::from_utf8_lossy(bytes).replace(char::REPLACEMENT_CHARACTER, "").trim().to_string()
 }
 
 /// Inserts dictated text at a char position, adding a space on either side where words would touch.
@@ -613,8 +637,6 @@ impl App {
             };
             return;
         }
-        // Without detected speech the audio still goes the normal way: loud noise can hide speech from the
-        // level check, and dropping the recording would lose the dictation.
         self.log(if heard {
             format!("Aufnahme nach {STOP_AFTER_SPEECH_SECS} s Stille automatisch beendet")
         } else {
@@ -655,6 +677,12 @@ impl App {
                     self.fail(format!("Kein Ton aufgenommen. {MIC_HINT}"));
                     return;
                 }
+                let Some(speech) = speech_span(&audio, 16000) else {
+                    self.log("Keine Sprache erkannt, nichts an die Texterkennung gegeben".into());
+                    self.status = "Keine Sprache erkannt – nichts eingefügt".into();
+                    return;
+                };
+                let audio = speech.to_vec();
                 let (ctx, tx, ui, lang) = (self.ctx.clone().unwrap(), self.tx.clone(), ui_ctx.clone(), LANGS[self.lang].0);
                 self.audio_secs = audio.len() as f32 / 16000.0;
                 self.transcribing_since = Some(Instant::now());
@@ -1088,6 +1116,39 @@ mod tests {
         assert_eq!(restore_cleared("Alter Text.", ""), "Alter Text.");
         assert_eq!(restore_cleared("Alter Text.", "Neues Diktat."), "Alter Text. Neues Diktat.");
         assert_eq!(restore_cleared("", "Neu."), "Neu.");
+    }
+
+    #[test]
+    fn speech_span_trims_silence_with_margin() {
+        // at 1 kHz: 1 s noise, 0.5 s speech, 2 s noise
+        let mut a = audio(&[0.003; 10]);
+        a.extend(audio(&[0.2; 5]));
+        a.extend(audio(&[0.003; 20]));
+        let span = speech_span(&a, 1000).unwrap();
+        assert_eq!(span.len(), 300 + 500 + 500);
+        assert_eq!(span.as_ptr(), a[700..].as_ptr());
+    }
+
+    #[test]
+    fn speech_span_is_none_without_speech() {
+        assert!(speech_span(&audio(&[0.03; 50]), 1000).is_none());
+        assert!(speech_span(&[], 16000).is_none());
+    }
+
+    #[test]
+    fn speech_span_keeps_margins_inside_the_recording() {
+        let mut a = audio(&[0.2; 2]);
+        a.extend(audio(&[0.003; 2]));
+        assert_eq!(speech_span(&a, 1000).unwrap().len(), a.len());
+    }
+
+    #[test]
+    fn decode_text_joins_split_characters_and_drops_broken_ones() {
+        let mut bytes = b" Gr".to_vec();
+        bytes.extend_from_slice(&"ö".as_bytes()[..1]);
+        bytes.extend_from_slice(&"ö".as_bytes()[1..]);
+        assert_eq!(decode_text(&bytes), "Grö");
+        assert_eq!(decode_text(b"B\xF0\x9F. Dispatch. "), "B. Dispatch.");
     }
 
     #[test]
