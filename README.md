@@ -1,6 +1,16 @@
-# Mundwerk
+<p align="center">
+  <img src="logo.png" alt="Mundwerk" width="128">
+</p>
 
-Lokales Diktieren mit Whisper: sprechen, Text kopieren. Offline, ohne Konto.
+<h1 align="center">Mundwerk</h1>
+
+<p align="center">
+  Lokales Diktieren mit Whisper: sprechen, Text kopieren. Offline, ohne Konto.
+</p>
+
+<p align="center">
+  <a href="https://github.com/elnebuloso/mundwerk/releases">Releases</a>
+</p>
 
 Ein kleines Fenster: **Aufnahme starten → sprechen → stoppen**. Der erkannte Text landet im Textfeld, wo du ihn korrigierst und in die Zwischenablage kopierst. Die Spracherkennung läuft komplett auf deinem Rechner ([whisper.cpp](https://github.com/ggml-org/whisper.cpp)). Ins Netz geht Mundwerk nur, um Modelle herunterzuladen – nie mit deinem Audio.
 

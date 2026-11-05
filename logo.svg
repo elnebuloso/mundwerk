@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2f6bf0"/>
+      <stop offset="1" stop-color="#1a347f"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- speech bubble -->
+  <path d="M152 128 H 360 A 64 64 0 0 1 424 192 V 300 A 64 64 0 0 1 360 364 H 210 L 132 424 L 148 364 A 64 64 0 0 1 88 300 V 192 A 64 64 0 0 1 152 128 Z" fill="#f2f6ff"/>
+  <!-- the voice: sound wave -->
+  <g stroke="#2563eb" stroke-width="18" stroke-linecap="round">
+    <path d="M142 228 V 264"/>
+    <path d="M176 200 V 292"/>
+    <path d="M210 216 V 276"/>
+  </g>
+  <!-- ... becomes text -->
+  <g stroke="#93abe6" stroke-width="16" stroke-linecap="round">
+    <path d="M256 210 H 376"/>
+    <path d="M256 246 H 352"/>
+    <path d="M256 282 H 320"/>
+  </g>
+  <!-- recording -->
+  <circle cx="404" cy="132" r="34" fill="#ef4444" stroke="#1f4fc0" stroke-width="10"/>
+</svg>
