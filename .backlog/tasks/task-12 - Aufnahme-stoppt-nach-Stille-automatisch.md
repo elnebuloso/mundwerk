@@ -1,11 +1,11 @@
 ---
 id: TASK-12
 title: Aufnahme stoppt nach Stille automatisch
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-11-05 15:29'
-updated_date: '2026-11-05 15:45'
+updated_date: '2026-11-05 16:54'
 labels: []
 dependencies: []
 priority: medium
@@ -21,7 +21,7 @@ Der Nutzer vergisst, die Aufnahme zu stoppen. Mundwerk soll das bei Stille selbs
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Nach dem ersten erkannten Sprechen stoppt die Aufnahme nach 4 s ohne Sprache von selbst und der Text wird erkannt wie beim Klick auf „Aufnahme stoppen“
+- [x] #1 Nach dem ersten erkannten Sprechen stoppt die Aufnahme nach 4 s ohne Sprache von selbst und der Text wird erkannt wie beim Klick auf „Aufnahme stoppen“
 - [x] #2 Kurze Denkpausen unter 4 s beenden die Aufnahme nicht
 - [x] #3 Gleichmäßiges Raumrauschen ohne Sprache hält die Aufnahme nicht offen
 - [x] #4 Während der Aufnahme zeigt ein Countdown, wann sie wegen Stille stoppt; das Protokoll nennt den automatischen Stopp
@@ -48,4 +48,12 @@ Probe (Sprachausgabe + 10 s echtes Raumrauschen vom WSL-Mikrofon, RMS 0,001–0,
 Live unter WSL: Aufnahme ohne Sprechen stoppte nach 15 s, Protokoll „Aufnahme nach 15 s ohne erkannte Sprache automatisch beendet“, Raumrauschen ergab „Vielen Dank.“ (bekannte Halluzination). Countdown „Aufnahme läuft … Stille, stoppt in 3 s“ per Screenshot bei 780×600 und 640×480 ohne Überlappung. Offen: AC 1 mit echter gesprochener Sprache live – der 4-s-Stopp ist nur mit Sprachausgabe offline geprüft.
 
 Nebenbefund, nicht Teil dieses Tasks: Bei 640×480 überlappt in der Fußzeile die Rechenwerk-Zeile mit „Version dev“ (seit der Versionsanzeige).
+
+Nutzer bestätigt am 2026-11-05 („klappt alles“) den Test von `v0.8.0` unter Windows auf dem Rechner mit GTX 1070 nach dem Ablauf: Fußzeile mit GPU, `Strg+Alt+Leertaste` aus VS Code mit Start-Ton, Auto-Stopp nach Stille mit Stopp-Ton, Kopier-Ton, `Strg+V` ins Claude-Code-Feld, auch mit minimiertem Fenster. Wörtlicher Fußzeilentext und Dauer der Erkennung wurden nicht übermittelt. Damit ist der 4-s-Stopp nach echter Sprache bestätigt.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Aufnahme stoppt 4 s nach der letzten Sprache bzw. 15 s ohne Sprache; Sprache zählt relativ zum leisesten Moment der Aufnahme (+12 dB), damit Raumrauschen sie nicht offen hält. Ohne erkannte Sprache wird nicht verworfen, sondern normal erkannt (Schutz vor Datenverlust bei lautem Rauschen). Countdown in der Statuszeile. Unit-Tests, Probe mit Sprachausgabe und Raumrauschen, Live unter WSL und vom Nutzer unter Windows bestätigt.
+<!-- SECTION:FINAL_SUMMARY:END -->

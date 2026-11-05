@@ -1,11 +1,11 @@
 ---
 id: TASK-15
 title: 'Dezente Töne bei Start, Stopp und Kopieren im Hintergrund'
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-11-05 16:35'
-updated_date: '2026-11-05 16:39'
+updated_date: '2026-11-05 16:54'
 labels: []
 dependencies: []
 priority: medium
@@ -42,4 +42,12 @@ Mundwerk liegt oft verdeckt hinter anderen Fenstern, während der Nutzer per glo
 
 <!-- SECTION:NOTES:BEGIN -->
 Live unter WSL geprüft, Ausgabe mit `parec -d RDPSink.monitor` mitgeschnitten (Frequenz über Nulldurchgänge je 20 ms): Start per Kürzel → 660→880 Hz; Stopp per Kürzel → 880→660 Hz; Text kopiert → 2× ~1175 Hz; RMS etwa 0,035 (−29 dBFS). Start per Kürzel und automatischer Stopp nach 15 s → Start- und Stopp-Ton im Abstand von 15,7 s, Kopier-Ton nach der Erkennung. Start und Stopp per Klick: Mitschnitt über 16,8 s komplett still, auch nach dem Kopieren. Unit-Tests: Spitze ≤ 0,05, kein Sprung am Anfang/Ende, Start steigt, Stopp fällt. Fehlerpfad ohne Ausgabegerät nur per Code (Protokollzeile „Ton konnte nicht abgespielt werden“), nicht ausgelöst.
+
+Nutzer bestätigt am 2026-11-05 („klappt alles“) den Test von `v0.8.0` unter Windows auf dem Rechner mit GTX 1070 nach dem Ablauf: Fußzeile mit GPU, `Strg+Alt+Leertaste` aus VS Code mit Start-Ton, Auto-Stopp nach Stille mit Stopp-Ton, Kopier-Ton, `Strg+V` ins Claude-Code-Feld, auch mit minimiertem Fenster. Wörtlicher Fußzeilentext und Dauer der Erkennung wurden nicht übermittelt.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Leise Töne (etwa −29 dBFS, weich ein-/ausgeblendet): aufsteigend beim Start per Kürzel, absteigend beim Stopp per Kürzel oder Stille, Doppelton beim Kopieren nach einem solchen Stopp mit gesetztem Haken; im Fenster stumm. Per Mitschnitt unter WSL gemessen, vom Nutzer unter Windows bestätigt.
+<!-- SECTION:FINAL_SUMMARY:END -->

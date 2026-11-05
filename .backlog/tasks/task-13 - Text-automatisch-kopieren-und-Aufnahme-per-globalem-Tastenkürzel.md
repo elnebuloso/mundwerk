@@ -1,11 +1,11 @@
 ---
 id: TASK-13
 title: Text automatisch kopieren und Aufnahme per globalem Tastenkürzel
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-11-05 16:03'
-updated_date: '2026-11-05 16:11'
+updated_date: '2026-11-05 16:54'
 labels: []
 dependencies: []
 priority: high
@@ -25,7 +25,7 @@ Der Nutzer will diktierten Text direkt in anderen Programmen nutzen (z. B. das E
 - [x] #2 `Strg+Alt+Leertaste` (Mac: `⌃⌥Leertaste`) startet und stoppt die Aufnahme, auch wenn ein anderes Fenster im Vordergrund ist
 - [x] #3 Lässt sich das Kürzel nicht registrieren, läuft Mundwerk normal weiter und das Protokoll nennt den Grund
 - [x] #4 Die Oberfläche nennt das globale Kürzel, das README beschreibt Haken, Kürzel und die Grenzen (Wayland, WSL)
-- [ ] #5 Unter Windows geprüft: Kürzel in VS Code gedrückt, Diktat, `Strg+V` fügt den Text ein
+- [x] #5 Unter Windows geprüft: Kürzel in VS Code gedrückt, Diktat, `Strg+V` fügt den Text ein
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -46,4 +46,12 @@ Live unter WSLg/X11 geprüft: Mit fokussiertem `xmessage` startete `Strg+Alt+Lee
 Stolperfalle beim Testen unter WSLg: Der X-Fokus folgt dem Windows-Fokus; ist ein Windows-Programm aktiv, hat kein X-Fenster den Fokus und X11 verwirft die Tasten. Ein frisch geöffnetes X-Fenster bekommt den Fokus kurz – nur so ließ sich testen.
 
 macOS: `global-hotkey` nutzt `RegisterEventHotKey` (Event-Tap nur für Medientasten), also nach Quelltext keine Bedienungshilfen-Freigabe nötig – nicht auf einem Mac geprüft. Ungeprüft: `⌃⌥Leertaste` ist auf dem Mac womöglich als „Nächste Eingabequelle“ belegt. Offen: AC 5 unter Windows; ob ein minimiertes Fenster unter Windows den Kürzel-Event verarbeitet.
+
+Nutzer bestätigt am 2026-11-05 („klappt alles“) den Test von `v0.8.0` unter Windows auf dem Rechner mit GTX 1070 nach dem Ablauf: Fußzeile mit GPU, `Strg+Alt+Leertaste` aus VS Code mit Start-Ton, Auto-Stopp nach Stille mit Stopp-Ton, Kopier-Ton, `Strg+V` ins Claude-Code-Feld, auch mit minimiertem Fenster. Wörtlicher Fußzeilentext und Dauer der Erkennung wurden nicht übermittelt.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Haken „Automatisch kopieren“ (Standard an, `~/.mundwerk/auto-copy`) und globales Kürzel `Strg+Alt+Leertaste` (Mac `⌃⌥Leertaste`) über `global-hotkey`. Unter WSLg/X11 und vom Nutzer unter Windows geprüft. Offen: Mac ungetestet, `⌃⌥Leertaste` ist dort womöglich als „Nächste Eingabequelle“ belegt; Wayland und WSL ohne globales Kürzel.
+<!-- SECTION:FINAL_SUMMARY:END -->

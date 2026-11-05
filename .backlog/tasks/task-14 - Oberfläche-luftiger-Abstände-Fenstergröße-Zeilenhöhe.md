@@ -1,11 +1,11 @@
 ---
 id: TASK-14
 title: 'Oberfläche luftiger: Abstände, Fenstergröße, Zeilenhöhe'
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-11-05 16:23'
-updated_date: '2026-11-05 16:26'
+updated_date: '2026-11-05 16:54'
 labels: []
 dependencies: []
 priority: medium
@@ -34,3 +34,9 @@ Umgesetzt: `item_spacing` 10×8 (vorher 8×6), `button_padding` 14×7 (10×5), `
 
 Screenshots (Scratchpad `ux/`): vorher 780×600 und 640×480, nachher 880×680 und 720×600, dunkel und hell, mit offenem Protokoll. Version in der Fußzeile bei 720 px frei, Rechenwerk gekürzt. Cursor sitzt nach dem Einfügen hinter dem eingefügten Text. Bei Mindestgröße mit offenem Protokoll bleiben etwa 4 Textzeilen sichtbar, der Rest scrollt.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Mehr Abstand, größere Buttons, Fenster 880×680 (mindestens 720×600), Diktatfeld mit 16 px und 8 px Zusatz-Zeilenabstand, Fußzeile kürzt statt zu überdecken, Theme-Schalter nur mit Symbolen (🌙 rechts). Per Screenshot in beiden Größen und Themes geprüft, erschienen in `v0.7.0`.
+<!-- SECTION:FINAL_SUMMARY:END -->
