@@ -345,8 +345,7 @@ fn transcribe(ctx: &WhisperContext, audio: &[f32], lang: &str) -> Result<String,
     p.set_language(Some(lang));
     p.set_n_threads(std::thread::available_parallelism().map_or(4, |n| n.get()) as i32);
     p.set_no_context(true);
-    // size the audio context to the recording instead of the fixed 30 s window: measured 126 s -> 17 s for 5 s of audio on an i5-3570K
-    p.set_audio_ctx(((audio.len() * 1500 / (16000 * 30)) + 64).min(1500) as i32);
+    // no set_audio_ctx: a window sized to the recording made Whisper say a 9 s sentence twice; the full 30 s window costs about 3x on the CPU
     p.set_suppress_blank(true);
     p.set_print_progress(false);
     p.set_print_realtime(false);

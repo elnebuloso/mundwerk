@@ -141,7 +141,7 @@ Mundwerk nutzt automatisch eine vorhandene Grafikkarte und rechnet sonst auf der
 - „keine Vulkan-fähige GPU gefunden“ – Grafiktreiber aktualisieren. Unter Windows bringt der normale Treiber Vulkan mit, unter Linux muss `libvulkan1` samt Treiber installiert sein.
 - „ohne GPU-Unterstützung gebaut“ – ein selbst gebautes Binary mit `--no-default-features`.
 
-Auf der CPU dauert die Erkennung ein Vielfaches der Aufnahme: Auf einem i5-3570K brauchten 3 s Sprache mit `large-v3-turbo-q5_0` 15–25 s. Mit `base` geht es deutlich schneller.
+Auf der CPU dauert die Erkennung ein Vielfaches der Aufnahme: Auf einem i5-3570K brauchten 9 s Sprache mit `large-v3-turbo-q5_0` 65–90 s. Mit `base` geht es deutlich schneller.
 
 ## Dateien
 
