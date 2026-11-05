@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-11-05 15:19'
-updated_date: '2026-11-05 15:22'
+updated_date: '2026-11-05 15:36'
 labels: []
 dependencies: []
 priority: high
@@ -21,10 +21,10 @@ Kollegen des Nutzers wollen Mundwerk auf ARM-Macs (Apple Silicon, M1 und neuer) 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Jedes Release enthält `mundwerk-macos-arm64.zip` mit `Mundwerk.app`, gebaut und getestet auf einem macOS-ARM-Runner
+- [x] #1 Jedes Release enthält `mundwerk-macos-arm64.zip` mit `Mundwerk.app`, gebaut und getestet auf einem macOS-ARM-Runner
 - [ ] #2 Der Mac-Build nutzt Metal; die Fußzeile nennt bei CPU den Grund ohne Vulkan-Bezug
 - [ ] #3 Die Tastenkürzel heißen auf dem Mac `⌘R` und `⌘⇧C`
-- [ ] #4 Die README erklärt einem Mac-Nutzer Download, Entpacken, „Trotzdem öffnen“ und die Mikrofon-Freigabe
+- [x] #4 Die README erklärt einem Mac-Nutzer Download, Entpacken, „Trotzdem öffnen“ und die Mikrofon-Freigabe
 - [ ] #5 Ein Kollege hat die App auf einem ARM-Mac gestartet, die Fußzeile zeigt die GPU und ein Diktat gelingt
 <!-- AC:END -->
 
@@ -43,4 +43,6 @@ Kollegen des Nutzers wollen Mundwerk auf ARM-Macs (Apple Silicon, M1 und neuer) 
 
 <!-- SECTION:NOTES:BEGIN -->
 Umgesetzt: Feature `metal`, `compute_device` zählt Metal mit (CPU-Grund „keine Metal-fähige GPU gefunden“), Kürzel-Beschriftung und Mikrofon-Hinweis je OS, `scripts/macos-app.sh` (Info.plist mit `NSMicrophoneUsageDescription`, ad-hoc `codesign`, `ditto`), CI-Matrix `macos-latest` mit `MACOSX_DEPLOYMENT_TARGET=13.0`, drittes Asset, README-Abschnitt „Mac“. Unter Linux gebaut und getestet, clippy ohne neue Warnung. Der Mac-Build selbst ist noch nicht gelaufen – erst im CI. Die Dialogtexte in der README („wurde nicht geöffnet“, „Trotzdem öffnen“) stammen aus dem Gedächtnis, nicht von einem Mac. Die `GGML_AVX*`-Schalter greifen laut `ggml-cpu/CMakeLists.txt` nur auf x86.
+
+Release `v0.4.0` (CI-Lauf 42054798408 grün): `mundwerk-macos-arm64.zip` (7 MB) enthält `Mundwerk.app` mit `Mach-O 64-bit arm64`, `_CodeSignature` und `CFBundleShortVersionString` 0.4.0. Mac-Job: Build 3 min 18 s ohne Cache, 4 Unit-Tests grün; vorher etwa 5 min Warten auf einen Runner. AC 2 und 3 (Fußzeile, ⌘-Kürzel) sind nur kompiliert, nicht auf einem Mac gesehen – offen bis zum Test der Kollegen (AC 5).
 <!-- SECTION:NOTES:END -->
