@@ -604,6 +604,24 @@ fn save_auto_copy(on: bool) {
     let _ = std::fs::write(auto_copy_path(), if on { "on" } else { "off" });
 }
 
+fn model_choice_path() -> PathBuf {
+    app_dir().join("model")
+}
+
+/// Index in `MODELS` of the saved model name; the first model when nothing or an unknown name is saved.
+fn model_index(saved: &str) -> usize {
+    MODELS.iter().position(|(name, _, _)| *name == saved.trim()).unwrap_or(0)
+}
+
+fn load_model_choice() -> usize {
+    model_index(&std::fs::read_to_string(model_choice_path()).unwrap_or_default())
+}
+
+fn save_model_choice(name: &str) {
+    // losing the choice only means the first model at the next start
+    let _ = std::fs::write(model_choice_path(), name);
+}
+
 /// Registers the shortcut that toggles recording from any window; the manager must live on the
 /// thread running the event loop (Windows, macOS).
 fn register_hotkey(tx: Sender<Msg>, ui_ctx: egui::Context) -> Result<global_hotkey::GlobalHotKeyManager, String> {
@@ -629,7 +647,7 @@ impl App {
     fn new(ui_ctx: &egui::Context) -> Self {
         let (tx, rx) = channel();
         let mut app = App {
-            model: 0,
+            model: load_model_choice(),
             lang: 0,
             ctx: None,
             vad: None,
@@ -675,7 +693,7 @@ impl App {
             }
             Err(e) => app.log(format!("Tastenkürzel {GLOBAL_KEY_LABEL} nicht verfügbar: {e}")),
         }
-        if model_path(MODELS[0].0).exists() {
+        if model_path(app.selected()).exists() {
             app.start_load(ui_ctx);
         } else {
             app.status = "Modell herunterladen, um loszulegen".into();
@@ -838,6 +856,7 @@ impl App {
                 self.ctx = Some(c);
                 self.log(format!("Bereit: {name}"));
                 self.status = "Bereit".into();
+                save_model_choice(&name);
                 self.loaded = name;
                 self.loading = false;
             }
@@ -1157,6 +1176,14 @@ fn main() -> eframe::Result {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn saved_model_name_selects_its_index() {
+        assert_eq!(model_index("base\n"), 2);
+        assert_eq!(model_index("large-v3-turbo"), 1);
+        assert_eq!(model_index(""), 0);
+        assert_eq!(model_index("tiny"), 0);
+    }
 
     #[test]
     fn logo_decodes_as_window_icon() {
