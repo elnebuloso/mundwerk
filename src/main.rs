@@ -636,9 +636,9 @@ impl App {
                 }
             });
         });
-        ui.add_space(4.0);
+        ui.add_space(8.0);
         let name = self.selected();
-        egui::Grid::new("model_info").num_columns(2).spacing([10.0, 2.0]).show(ui, |ui| {
+        egui::Grid::new("model_info").num_columns(2).spacing([12.0, 4.0]).min_row_height(18.0).show(ui, |ui| {
             for (label, value) in [("Quelle", model_url(name)), ("Ziel", model_path(name).display().to_string())] {
                 ui.label(egui::RichText::new(label).weak());
                 ui.add(egui::Label::new(egui::RichText::new(&value).monospace()).truncate()).on_hover_text(&value);
@@ -649,7 +649,7 @@ impl App {
 
     fn action_row(&mut self, ui: &mut egui::Ui, ui_ctx: &egui::Context) {
         ui.horizontal(|ui| {
-            ui.set_min_height(44.0);
+            ui.set_min_height(48.0);
             if self.loading {
                 match self.progress {
                     Some((done, total)) if total > 0 => {
@@ -691,7 +691,7 @@ impl App {
                 } else {
                     egui::Button::new(text)
                 };
-                if ui.add_enabled(can_record, button.min_size(egui::vec2(250.0, 44.0)).corner_radius(8.0)).clicked() {
+                if ui.add_enabled(can_record, button.min_size(egui::vec2(280.0, 48.0)).corner_radius(8.0)).clicked() {
                     self.toggle(ui_ctx);
                 }
                 if let Some(r) = &self.rec {
@@ -711,6 +711,7 @@ impl App {
                 });
             });
         });
+        ui.add_space(4.0);
         match &self.error {
             Some(e) => ui.add(egui::Label::new(egui::RichText::new(format!("⚠ {e}")).color(ui.visuals().error_fg_color)).wrap()),
             None => {
@@ -738,6 +739,7 @@ impl App {
                 if ui.checkbox(&mut self.auto_copy, "Automatisch kopieren").on_hover_text("Legt nach jedem Diktat den ganzen Text in die Zwischenablage").changed() {
                     save_auto_copy(self.auto_copy);
                 }
+                ui.add_space(8.0);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let copied = self.copied_at.is_some_and(|t| t.elapsed() < Duration::from_secs(2));
                     let label = if copied { "Kopiert ✓".to_string() } else { format!("In Zwischenablage kopieren  ({COPY_KEY_LABEL})") };
@@ -746,6 +748,7 @@ impl App {
                     }
                 });
             });
+            ui.add_space(10.0);
             let id = egui::Id::unique("dictation");
             if std::mem::take(&mut self.move_cursor)
                 && let Some(at) = self.cursor
@@ -757,11 +760,13 @@ impl App {
                 state.store(ui_ctx, id);
             }
             egui::ScrollArea::vertical().show(ui, |ui| {
+                // TextEdit's line height is the font's row height plus this; the default 0 sets dictated paragraphs tightly
+                ui.spacing_mut().extra_text_line_spacing = 8.0;
                 let out = egui::TextEdit::multiline(&mut self.text)
                     .id(id)
                     .hint_text("Hier erscheint der diktierte Text, an der Stelle des Cursors. Du kannst ihn vor dem Kopieren bearbeiten.")
-                    .margin(egui::Margin::same(10))
-                    .font(egui::TextStyle::Body)
+                    .margin(egui::Margin::symmetric(16, 14))
+                    .font(egui::FontId::proportional(16.0))
                     .desired_width(f32::INFINITY)
                     .min_size(ui.available_size())
                     .show(ui);
@@ -793,15 +798,13 @@ impl eframe::App for App {
         }
 
         let style = root.style().clone();
-        let padded = |frame: egui::Frame| frame.inner_margin(egui::Margin::symmetric(14, 10));
+        let padded = |frame: egui::Frame| frame.inner_margin(egui::Margin::symmetric(20, 14));
 
         egui::Panel::top("bar").frame(padded(egui::Frame::side_top_panel(&style))).show(root, |ui| self.model_row(ui, ui_ctx));
 
         egui::Panel::bottom("footer").frame(padded(egui::Frame::side_top_panel(&style))).show(root, |ui| {
             let color = if self.device.starts_with("GPU") { present_color(ui.visuals()) } else { ui.visuals().weak_text_color() };
             ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("●").color(color));
-                ui.label(format!("Berechnung läuft auf: {}", self.device));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let mut theme = ui_ctx.theme();
                     let light = ui.selectable_value(&mut theme, egui::Theme::Light, "☀ Hell");
@@ -811,6 +814,13 @@ impl eframe::App for App {
                         save_theme(theme);
                     }
                     ui.label(egui::RichText::new(format!("Version {}", version())).weak());
+                    ui.add_space(12.0);
+                    // laid out last so it gets the space the right side leaves and truncates instead of overlapping
+                    ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                        ui.label(egui::RichText::new("●").color(color));
+                        let device = format!("Berechnung läuft auf: {}", self.device);
+                        ui.add(egui::Label::new(&device).truncate()).on_hover_text(&device);
+                    });
                 });
             });
         });
@@ -829,7 +839,7 @@ impl eframe::App for App {
         self.auto_stop(ui_ctx);
         egui::CentralPanel::default().frame(padded(egui::Frame::central_panel(&style))).show(root, |ui| {
             self.action_row(ui, ui_ctx);
-            ui.add_space(6.0);
+            ui.add_space(12.0);
             self.text_area(ui, ui_ctx);
         });
 
@@ -849,8 +859,8 @@ impl eframe::App for App {
 fn main() -> eframe::Result {
     let opts = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([780.0, 600.0])
-            .with_min_inner_size([640.0, 480.0])
+            .with_inner_size([880.0, 680.0])
+            .with_min_inner_size([720.0, 600.0])
             .with_title("Mundwerk"),
         ..Default::default()
     };
@@ -864,8 +874,9 @@ fn main() -> eframe::Result {
                 style.text_styles.insert(TextStyle::Button, FontId::new(15.0, FontFamily::Proportional));
                 style.text_styles.insert(TextStyle::Small, FontId::new(13.0, FontFamily::Proportional));
                 style.text_styles.insert(TextStyle::Monospace, FontId::new(13.0, FontFamily::Monospace));
-                style.spacing.item_spacing = egui::vec2(8.0, 6.0);
-                style.spacing.button_padding = egui::vec2(10.0, 5.0);
+                style.spacing.item_spacing = egui::vec2(10.0, 8.0);
+                style.spacing.button_padding = egui::vec2(14.0, 7.0);
+                style.spacing.interact_size.y = 30.0;
             });
             cc.egui_ctx.set_theme(load_theme());
             Ok(Box::new(App::new(&cc.egui_ctx)))
