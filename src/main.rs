@@ -33,6 +33,10 @@ const COPY_KEY_LABEL: &str = if cfg!(target_os = "macos") { "⌘⇧C" } else { "
 const GPU_API: &str = if cfg!(feature = "metal") { "Metal" } else { "Vulkan" };
 // below about -40 dBFS throughout: nothing but noise floor, and Whisper would invent text for it
 const SILENCE: f32 = 0.01;
+const STOP_AFTER_SPEECH_SECS: f32 = 4.0;
+const STOP_WITHOUT_SPEECH_SECS: f32 = 15.0;
+// +12 dB over the quietest moment of the recording counts as speech, so steady room noise doesn't
+const SPEECH_OVER_FLOOR: f32 = 4.0;
 
 enum Msg {
     /// Some((done, total)) while downloading, None while loading into memory.
@@ -234,13 +238,34 @@ fn is_silent(audio: &[f32]) -> bool {
     audio.iter().all(|s| s.abs() < SILENCE)
 }
 
+fn rms(samples: &[f32]) -> f32 {
+    if samples.is_empty() {
+        return 0.0;
+    }
+    (samples.iter().map(|s| s * s).sum::<f32>() / samples.len() as f32).sqrt()
+}
+
 /// Input level of the samples as 0..1 on a -60..0 dBFS scale.
 fn level(samples: &[f32]) -> f32 {
     if samples.is_empty() {
         return 0.0;
     }
-    let rms = (samples.iter().map(|s| s * s).sum::<f32>() / samples.len() as f32).sqrt();
-    ((20.0 * rms.max(1e-6).log10() + 60.0) / 60.0).clamp(0.0, 1.0)
+    ((20.0 * rms(samples).max(1e-6).log10() + 60.0) / 60.0).clamp(0.0, 1.0)
+}
+
+/// Seconds left until the recording should stop for lack of speech, and whether speech was heard.
+fn secs_until_auto_stop(samples: &[f32], rate: u32) -> (f32, bool) {
+    let rate = rate.max(10) as usize;
+    // only the last 30 s: older speech would have ended the recording long ago, and the cost stays flat
+    let tail = &samples[samples.len().saturating_sub(rate * 30)..];
+    let windows: Vec<f32> = tail.chunks_exact(rate / 10).map(rms).collect();
+    // below 1e-4 is digital zero (stream start, muted device), not the room's noise floor
+    let floor = windows.iter().copied().filter(|&r| r > 1e-4).fold(f32::INFINITY, f32::min);
+    let threshold = if floor.is_finite() { (floor * SPEECH_OVER_FLOOR).max(SILENCE) } else { SILENCE };
+    match windows.iter().rposition(|&r| r > threshold) {
+        Some(last) => (STOP_AFTER_SPEECH_SECS - (windows.len() - 1 - last) as f32 / 10.0, true),
+        None => (STOP_WITHOUT_SPEECH_SECS - samples.len() as f32 / rate as f32, false),
+    }
 }
 
 /// Inserts dictated text at a char position, adding a space on either side where words would touch.
@@ -437,6 +462,26 @@ impl App {
         }
         let (cancel, tx, ui) = (self.cancel.clone(), self.tx.clone(), ui_ctx.clone());
         std::thread::spawn(move || load_model(name.into(), cancel, tx, ui));
+    }
+
+    fn auto_stop(&mut self, ui_ctx: &egui::Context) {
+        let Some(r) = &self.rec else { return };
+        let (left, heard) = secs_until_auto_stop(&r.samples.lock().unwrap(), r.rate);
+        if left > 0.0 {
+            self.status = match left {
+                l if l <= 3.0 => format!("Aufnahme läuft … Stille, stoppt in {} s", l.ceil()),
+                _ => "Aufnahme läuft …".into(),
+            };
+            return;
+        }
+        // Without detected speech the audio still goes the normal way: loud noise can hide speech from the
+        // level check, and dropping the recording would lose the dictation.
+        self.log(if heard {
+            format!("Aufnahme nach {STOP_AFTER_SPEECH_SECS} s Stille automatisch beendet")
+        } else {
+            format!("Aufnahme nach {STOP_WITHOUT_SPEECH_SECS} s ohne erkannte Sprache automatisch beendet")
+        });
+        self.toggle(ui_ctx);
     }
 
     fn toggle(&mut self, ui_ctx: &egui::Context) {
@@ -721,6 +766,7 @@ impl eframe::App for App {
             });
         });
 
+        self.auto_stop(ui_ctx);
         egui::CentralPanel::default().frame(padded(egui::Frame::central_panel(&style))).show(root, |ui| {
             self.action_row(ui, ui_ctx);
             ui.add_space(6.0);
@@ -786,6 +832,48 @@ mod tests {
         assert!(is_silent(&[1.0 / 32768.0, -1.0 / 32768.0]));
         assert!(!is_silent(&[0.0, 14900.0 / 32768.0]));
         assert!(is_silent(&[]));
+    }
+
+    /// A square wave at 1 kHz with one amplitude per 100 ms window.
+    fn audio(windows: &[f32]) -> Vec<f32> {
+        windows.iter().flat_map(|&a| [a, -a].repeat(50)).collect()
+    }
+
+    #[test]
+    fn auto_stop_counts_from_last_speech() {
+        let noise = 0.003;
+        let mut a = audio(&[noise; 5]);
+        a.extend(audio(&[0.2; 10]));
+        a.extend(audio(&[noise; 10])); // 1 s pause
+        let (left, heard) = secs_until_auto_stop(&a, 1000);
+        assert!(heard);
+        assert!((left - 3.0).abs() < 1e-4, "{left}");
+        a.extend(audio(&[noise; 30]));
+        assert!(secs_until_auto_stop(&a, 1000).0 <= 0.0);
+    }
+
+    #[test]
+    fn auto_stop_ignores_steady_room_noise() {
+        // room noise above the absolute silence threshold still is no speech
+        let a = audio(&[0.03; 160]);
+        let (left, heard) = secs_until_auto_stop(&a, 1000);
+        assert!(!heard);
+        assert!(left < 0.0);
+    }
+
+    #[test]
+    fn auto_stop_without_speech_waits_longer() {
+        let a = audio(&[0.0; 50]); // digital zero, e.g. a muted device
+        assert_eq!(secs_until_auto_stop(&a, 1000), (STOP_WITHOUT_SPEECH_SECS - 5.0, false));
+    }
+
+    #[test]
+    fn auto_stop_hears_speech_from_the_first_moment() {
+        let mut a = audio(&[0.2, 0.25, 0.15]);
+        a.extend(audio(&[0.002; 2]));
+        let (left, heard) = secs_until_auto_stop(&a, 1000);
+        assert!(heard);
+        assert!((left - 3.8).abs() < 1e-4, "{left}");
     }
 
     #[test]

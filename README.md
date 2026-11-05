@@ -88,6 +88,7 @@ Ab dem nächsten Start lädt Mundwerk das Modell selbst.
 
 Die Tasten wirken nur, solange das Mundwerk-Fenster im Vordergrund ist.
 
+- Die Aufnahme stoppt von selbst, wenn du 4 Sekunden lang nichts sagst. Kommt nach dem Start gar keine Sprache, stoppt sie nach 15 Sekunden. In den letzten 3 Sekunden zählt die Zeile unter dem Button herunter („Stille, stoppt in 3 s“). Was bis dahin gesprochen wurde, wird ganz normal erkannt. Weiterreden nach dem Stopp: einfach neu starten, der Text kommt an die Cursorposition.
 - Neuer Text wird an der Cursorposition eingefügt. Ohne gesetzten Cursor kommt er ans Ende.
 - „Leeren“ löscht den ganzen Text. „Rückgängig“ holt ihn zurück, aber nur bis zum nächsten Diktat oder zur nächsten Änderung im Textfeld.
 - Die Sprache stellst du rechts neben dem Aufnahme-Button ein: „Deutsch“, „Englisch“ oder „Automatisch“.
